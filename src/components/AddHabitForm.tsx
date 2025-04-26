@@ -54,8 +54,8 @@ export default function AddHabitForm({ onSubmit }: AddHabitFormProps) {
    
     
 
-    <div className='bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm w-70 h-100'>
-      <div className="space-y-4 max-h-[550px] overflow-y-auto px-4 py-2">
+    
+      <div className="space-y-4 max-h-[550px] overflow-y-auto px-4 ">
     
     <form onSubmit={handleSubmit} className="bg-gray-200 p-6 rounded-lg shadow-md  max-w-2xl mx-auto">
      
@@ -116,7 +116,7 @@ export default function AddHabitForm({ onSubmit }: AddHabitFormProps) {
       </div>
     </form>
     </div>
-    </div>
+   
   
   );
 } 

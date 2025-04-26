@@ -2,7 +2,8 @@
 
 import { ButtonDownAero, ButtonIcon } from "@/components/Button";
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { EventTable } from "./EventTable";
 
 import {
     Card,
@@ -18,6 +19,24 @@ import {
 
 export default function HabitCard() {
 const [showMenu, setShowMenu] = useState(false)
+const [expand, setExpand] = useState(false)
+const divRef = useRef<HTMLDivElement>(null);
+
+
+useEffect(() => {
+  function handleClickOutside(event: MouseEvent) {
+    if (divRef.current && !divRef.current.contains(event.target as Node)) {
+      setExpand(false);
+    }
+  }
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
+
+
   return (
     <Card>
       
@@ -54,7 +73,22 @@ const [showMenu, setShowMenu] = useState(false)
     </CardContent>
     <CardFooter>
       <p>Card Footer</p>
+    
+    
     </CardFooter>
+    <div ref={divRef}>
+    <div className="ml-58   ">
+      <ButtonDownAero  onClick={() => (setExpand(prev => !prev))}></ButtonDownAero>
+      
+     
+      </div >
+    {expand && (
+       <div className="mx-4 w-62 h-40 overflow-y-auto bg-gray-100 border rounded shadow">
+      <EventTable />
+     
+     </div>
+      )}
+      </div>
   </Card>
   
   );
