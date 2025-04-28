@@ -3,6 +3,8 @@
 import * as React from "react"
 import { Minus, Plus } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer } from "recharts"
+import Link from "next/link"
+import NavigationMenuDemo from "./Navbar"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,54 +17,13 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import HabitCard from "./HabitCard"
+import HabitCard, { Habit } from "@/components/HabitCard"
 import { CrossCloseButton } from "./Button"
 
-const data = [
-  {
-    goal: 400,
-  },
-  {
-    goal: 300,
-  },
-  {
-    goal: 200,
-  },
-  {
-    goal: 300,
-  },
-  {
-    goal: 200,
-  },
-  {
-    goal: 278,
-  },
-  {
-    goal: 189,
-  },
-  {
-    goal: 239,
-  },
-  {
-    goal: 300,
-  },
-  {
-    goal: 200,
-  },
-  {
-    goal: 278,
-  },
-  {
-    goal: 189,
-  },
-  {
-    goal: 349,
-  },
-]
 
-export function HabitDrawer({openValue, onClose}) {
+export function HabitDrawer({data}: Habit) {
   const [goal, setGoal] = React.useState(350)
-  console.log(openValue)
+ 
 
 
   function onClick(adjustment: number) {
@@ -70,7 +31,7 @@ export function HabitDrawer({openValue, onClose}) {
   }
 
   return (
-    <Drawer open={openValue}>
+    <Drawer open={data} >
         
       <DrawerTrigger asChild>
         
@@ -87,7 +48,7 @@ export function HabitDrawer({openValue, onClose}) {
             <DrawerDescription></DrawerDescription>
           </DrawerHeader>
           <div className="p-4 pb-0 w-200">
-            <HabitCard />
+            
            
              
            </div>

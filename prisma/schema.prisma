@@ -8,54 +8,69 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
-// User model for authentication and basic info
+
+
+/* ────────────── USER  (stable baseline) ────────────── */
 model User {
-  id                  String   @id @default(uuid())
-  name                String
-  email               String   @unique
-  createdAt           DateTime @default(now())
-  personalityInsights String   @db.Text
-  habits              Habit[]
-  events              HabitEvent[]
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  name               String?
+  tonePreference     String?     // gentle | blunt | philosophical | funny
+  baselineMotivation String?     // self-respect | freedom | …
+  reflectionDepth    Int?        // 1-5
+  slipFraming        String?     // shame vs feedback
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  habit        Habit[]            // single active habit
+  reflections  UserReflection[]
+  events       HabitEvent[]
 }
 
-// Habit model for tracking user habits
+/* ────────────── HABIT  (context overlay) ────────────── */
 model Habit {
-  id                  String   @id @default(uuid())
-  userId              String
-  title               String
-  description         String?
-  positiveCues        String[]
-  negativeTriggers    String[]
-  motivators          String[]
-  successFactors      String[]
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                      String   @id @default(uuid())
+  userId                  String
+  name                    String
+  goalType                String?      // reduce | eliminate
+  microGoal               String?
+  triggers                String[]     // evenings, loneliness …
+  cravingNarrative        String?
+  resistanceStyle         String?
+  motivationOverride      String?
+  reflectionDepthOverride Int?
+  hitDefinition           String?
+  slipDefinition          String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events              HabitEvent[]
-
-  @@index([userId])
+  user          User @relation(fields: [userId], references: [id])
+  events        HabitEvent[]
 }
 
-// Custom model for tracking habit events
+/* ────────────── EVENT LOG ────────────── */
 model HabitEvent {
-  id        String   @id @default(uuid())
-  habitId   String
-  userId    String
-  type      EventType
-  notes     String?
-  createdAt DateTime @default(now()) @db.Timestamp(6)
-
-  habit     Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([habitId])
-  @@index([userId])
-  @@index([createdAt])
+  id             String   @id @default(uuid())
+  habitId        String
+  userId         String
+  type           String               // HIT | SLIP
+  timestamp      DateTime @default(now())
+  mood           String?
+  intensity      Int?
+  reflectionNote String?
+  emotionTags    String[]
+  aiPromptUsed   String?
+  isReversal     Boolean?
+  habit          Habit @relation(fields: [habitId], references: [id])
+  user           User  @relation(fields: [userId], references: [id])
 }
 
-enum EventType {
-  hit
-  slip
+/* Optional memory + quotes */
+model UserReflection {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  source    String           // user | ai
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }

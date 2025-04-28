@@ -16,7 +16,7 @@ export function ButtonIcon({ onClick }: { onClick?: () => void }) {
 export function ButtonDownAero({ onClick }: { onClick?: () => void }) {
   return (
     <Button 
-      variant="outline" 
+      variant="no border" 
       size="icon" 
       onClick={onClick}
       className="w-8 h-8 p-0" // smaller size button

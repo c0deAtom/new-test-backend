@@ -3,120 +3,183 @@
 import { useState } from 'react';
 import Tag from './Tag';
 
-interface AddHabitFormProps {
-  onSubmit: (data: {
-    userId: string
-    title: string;
-    description: string | null;
-    positiveCues: string[];
-    negativeTriggers: string[];
-    motivators: string[];
-    successFactors: string[];
-  }) => void;
-}
+export default function AddHabitForm() {
+  const [name, setName] = useState('');
+  const [userId, setUserId] = useState('010b6549-a538-49b0-a2f5-c27082fa3811'); // Replace this dynamically later if needed
+  const [goalType, setGoalType] = useState(''); // reduce | eliminate
+  const [microGoal, setMicroGoal] = useState('');
+  const [triggers, setTriggers] = useState<string[]>([]);
+  const [cravingNarrative, setCravingNarrative] = useState('');
+  const [resistanceStyle, setResistanceStyle] = useState('');
+  const [motivationOverride, setMotivationOverride] = useState('');
+  const [reflectionDepthOverride, setReflectionDepthOverride] = useState<number | undefined>();
+  const [hitDefinition, setHitDefinition] = useState('');
+  const [slipDefinition, setSlipDefinition] = useState('');
 
-export default function AddHabitForm({ onSubmit }: AddHabitFormProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [positiveCues, setPositiveCues] = useState<string[]>([]);
-  const [negativeTriggers, setNegativeTriggers] = useState<string[]>([]);
-  const [motivators, setMotivators] = useState<string[]>([]);
-  const [successFactors, setSuccessFactors] = useState<string[]>([]);
-  const [userId, setUserId] = useState('010b6549-a538-49b0-a2f5-c27082fa3811')
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    onSubmit({
-        userId,
-      title,
-      description: description || null,
-      positiveCues: positiveCues.map(cue => cue.trim()).filter(Boolean),
-      negativeTriggers: negativeTriggers.map(trigger => trigger.trim()).filter(Boolean),
-      motivators: motivators.map(motivator => motivator.trim()).filter(Boolean),
-      successFactors: successFactors.map(factor => factor.trim()).filter(Boolean),
 
-    });
+    try {
+      const res = await fetch('/api/habits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          name,
+          goalType,
+          microGoal,
+          triggers,
+          cravingNarrative,
+          resistanceStyle,
+          motivationOverride,
+          reflectionDepthOverride,
+          hitDefinition,
+          slipDefinition,
+        }),
+      });
 
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setPositiveCues([]);
-    setNegativeTriggers([]);
-    setMotivators([]);
-    setSuccessFactors([]);
-    
+      if (!res.ok) throw new Error('Failed to create habit');
+
+      const newHabit = await res.json();
+      console.log('Habit Created:', newHabit);
+
+      // Reset form
+      setName('');
+      setGoalType('');
+      setMicroGoal('');
+      setTriggers([]);
+      setCravingNarrative('');
+      setResistanceStyle('');
+      setMotivationOverride('');
+      setReflectionDepthOverride(undefined);
+      setHitDefinition('');
+      setSlipDefinition('');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
- 
-
   return (
-   
-    
+    <div className="space-y-4 max-h-[550px] overflow-y-auto">
+      <form onSubmit={handleSubmit} className="bg-gray-100 p-6 rounded-lg shadow-md max-w-2xl mx-auto">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Habit Title</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required
+              placeholder="e.g. Daily Meditation"
+            />
+          </div>
 
-    
-      <div className="space-y-4 max-h-[550px] overflow-y-auto px-4 ">
-    
-    <form onSubmit={handleSubmit} className="bg-gray-200 p-6 rounded-lg shadow-md  max-w-2xl mx-auto">
-     
-      
-      <div className="space-y-4 ">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Titlde</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-            placeholder="e.g. Daily Meditation"
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Goal Type (reduce / eliminate)</label>
+            <input
+              type="text"
+              value={goalType}
+              onChange={(e) => setGoalType(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="e.g. reduce"
+            />
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 block w-full text-gray-900 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            rows={3}
-            placeholder="e.g. 15 minutes of mindfulness meditation"
-          />
-        </div>
-       <p>positiveCues</p>
-        <Tag data={positiveCues} title="Positive Cues"
-      setData={setPositiveCues}/>
- <p>negativeTriggers</p>
-       <Tag data={negativeTriggers}
-       setData={setNegativeTriggers} title="Negetive Triggers"/>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Micro Goal</label>
+            <input
+              type="text"
+              value={microGoal}
+              onChange={(e) => setMicroGoal(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="e.g. meditate 5 minutes"
+            />
+          </div>
 
-<p>motivator</p>
-      <Tag data={motivators}
-      setData={setMotivators}
-      title="Motivators"
-      />
+          <div>
+            <p className="text-sm font-medium text-gray-700">Triggers</p>
+            <Tag data={triggers} setData={setTriggers} title="Triggers" />
+          </div>
 
-<p>successFactors</p>
-      <Tag data={successFactors}
-      title="Success Factors"
-      setData={setSuccessFactors}/>
-        <button
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Craving Narrative</label>
+            <textarea
+              value={cravingNarrative}
+              onChange={(e) => setCravingNarrative(e.target.value)}
+              className="mt-1 block w-full text-gray-900 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              rows={2}
+              placeholder="What story you tell yourself when craving?"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Resistance Style</label>
+            <input
+              type="text"
+              value={resistanceStyle}
+              onChange={(e) => setResistanceStyle(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="e.g. ignore, distract"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Motivation Override</label>
+            <input
+              type="text"
+              value={motivationOverride}
+              onChange={(e) => setMotivationOverride(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="What you remind yourself?"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Reflection Depth Override (1-5)</label>
+            <input
+              type="number"
+              value={reflectionDepthOverride ?? ''}
+              onChange={(e) => setReflectionDepthOverride(e.target.value ? parseInt(e.target.value) : undefined)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="1-5"
+              min="1"
+              max="5"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Hit Definition</label>
+            <input
+              type="text"
+              value={hitDefinition}
+              onChange={(e) => setHitDefinition(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="What counts as a hit?"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Slip Definition</label>
+            <input
+              type="text"
+              value={slipDefinition}
+              onChange={(e) => setSlipDefinition(e.target.value)}
+              className="mt-1 block w-full text-gray-600 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="What counts as a slip?"
+            />
+          </div>
+
+          <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             Create Habit
           </button>
-
-      
- 
-
-        <div className="pt-4">
-        
         </div>
-      </div>
-    </form>
+      </form>
     </div>
-   
-  
   );
-} 
+}

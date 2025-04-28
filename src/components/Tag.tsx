@@ -45,9 +45,9 @@ useEffect(() => {
   
 
   return (
-   <div className="w-full max-w-xl mx-auto mt-6">
+   <div className="w-full max-w-xl mx-auto ">
      
-      <div className="flex gap-2 p-2     flex-col">
+      <div className="flex gap-2      flex-col">
         {tags.map((tag, index) => (
           
           <div
@@ -67,7 +67,7 @@ useEffect(() => {
  <div>
         <input
           type="text"
-          className="flex-grow outline-none px-2 py-1 text-sm"
+          className="flex-grow outline-none px-2 py-1 text-sm border w-fulln m"
           placeholder="Type and press Enter..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
