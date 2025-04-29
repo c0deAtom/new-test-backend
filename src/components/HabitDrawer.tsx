@@ -17,21 +17,22 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import HabitCard, { Habit } from "@/components/HabitCard"
+
 import { CrossCloseButton } from "./Button"
+import { Habit } from "./HabitCard"
 
 
-export function HabitDrawer({data}: Habit) {
+export function HabitDrawer({showData}: Habit) {
   const [goal, setGoal] = React.useState(350)
  
 
-
+console.log(showData)
   function onClick(adjustment: number) {
     setGoal(Math.max(200, Math.min(400, goal + adjustment)))
   }
 
   return (
-    <Drawer open={data} >
+    <Drawer open={false} >
         
       <DrawerTrigger asChild>
         

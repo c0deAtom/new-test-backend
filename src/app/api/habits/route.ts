@@ -52,15 +52,20 @@ export async function POST(req: Request) {
 
 
 
-// GET request --> Fetch habits
+
+
 export async function GET() {
   try {
-    const habits = await prisma.habit.findMany();
-    
-    return NextResponse.json(habits, { status: 200 });
-  } catch (error) {
-    console.error('[GET HABITS ERROR]:', error);
-    return NextResponse.json({ message: 'Failed to fetch habits' }, { status: 500 });
+    const habits = await prisma.habit.findMany({
+      include: {
+        events: true,
+      },
+    });
+
+    return NextResponse.json(habits);
+  } catch (err) {
+    console.error("Error fetching habits:", err);
+    return NextResponse.json({ message: "Failed to fetch habits" }, { status: 500 });
   }
 }
 

@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import Tag from './Tag';
 
-export default function AddHabitForm() {
+export default function AddHabitForm({ onSubmit, onRefresh, }: { 
+  onSubmit: () => void, 
+  onRefresh: () => void,
+
+})  {
   const [name, setName] = useState('');
   const [userId, setUserId] = useState('010b6549-a538-49b0-a2f5-c27082fa3811'); // Replace this dynamically later if needed
   const [goalType, setGoalType] = useState(''); // reduce | eliminate
@@ -59,7 +63,10 @@ export default function AddHabitForm() {
     } catch (error) {
       console.error(error);
     }
+    onRefresh()
+    onSubmit()
   };
+  
 
   return (
     <div className="space-y-4 max-h-[550px] overflow-y-auto">
@@ -178,6 +185,7 @@ export default function AddHabitForm() {
           >
             Create Habit
           </button>
+          
         </div>
       </form>
     </div>

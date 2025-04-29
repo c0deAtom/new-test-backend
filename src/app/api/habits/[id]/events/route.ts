@@ -1,18 +1,17 @@
+// app/api/habits/[id]/events/route.ts
+
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  request: Request,
-  { params }: any
-) {
-  console.log('1111111')
+// Create a new event
+export async function POST(request: Request, { params }: any) {
+  console.log('1111111');
   try {
     const { type } = await request.json();
     const habitId = params.id;
 
-    // Get the habit to get the userId
     const habit = await prisma.habit.findUnique({
       where: { id: habitId }
     });
@@ -20,39 +19,51 @@ export async function POST(
     if (!habit) {
       return NextResponse.json({ error: 'Habit not found' }, { status: 404 });
     }
-    // Create a new event
+
     const event = await prisma.habitEvent.create({
       data: {
         habitId,
         userId: habit.userId,
         type,
-        mood: 'null'
+        mood: 'null', // temporary placeholder
       }
     });
-    console.log('222222')
-    console.log(NextResponse.json(event))
 
+    console.log('222222');
     return NextResponse.json(event);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to record event' }, { status: 500 });
   }
-} 
+}
 
-
-
-// app/api/habits/[id]/events/route.ts
-
-
-
-
-export async function DELETE(
-  
-  request: Request,
-  { params }: { params: { id: string } }
-) {
- 
+// Update an existing event
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-   
+    const habitEventId = params.id;
+    const body = await request.json();
+
+    const { mood, intensity, reflectionNote, emotionTags } = body;
+
+    const updatedEvent = await prisma.habitEvent.update({
+      where: { id: habitEventId },
+      data: {
+        mood,
+        intensity,
+        reflectionNote,
+        emotionTags,
+      },
+    });
+
+    return NextResponse.json(updatedEvent);
+  } catch (error) {
+    console.error('Update error:', error);
+    return NextResponse.json({ error: 'Failed to update event' }, { status: 500 });
+  }
+}
+
+// Delete an event
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
     const { id: eventId } = await request.json();
 
     if (!eventId) {

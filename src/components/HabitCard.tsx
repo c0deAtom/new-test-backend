@@ -4,6 +4,8 @@ import { ButtonDownAero, ButtonIcon } from "@/components/Button";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { EventTable } from "./EventTable";
+import { HabitEvent } from "@/app/dashboard/page";
+import { HabitDrawer } from "./HabitDrawer";
 
 import {
     Card,
@@ -13,6 +15,7 @@ import {
     CardHeader,
     CardTitle,
   } from "@/components/ui/card"
+
 
   export type Habit = {
     id: string;
@@ -29,17 +32,67 @@ import {
     slipDefinition?: string;
     createdAt: string;              // usually ISO date string from server
     updatedAt: string;
+    events: HabitEvent
+
   };
   
   
 
-export default function HabitCard({data, onRefresh}: {data: Habit, onRefresh: () => void}) {
+export default function HabitCard({ data, onRefresh, onTriggerQuestion }: { 
+  data: Habit;
+  onRefresh: () => void;
+  onTriggerQuestion?: (habitId: string, type: "HIT" | "SLIP") => void;
+
+})  {
 const [showMenu, setShowMenu] = useState(false)
 const [expand, setExpand] = useState(false)
-const divRef = useRef<HTMLDivElement>(null);
+const divRef = useRef<HTMLDivElement>(null)
 const [hitCount, setHitCount] = useState(0);
 const [slipCount, setSlipCount] = useState(0);
 
+const [selectedEvents, setSelectedEvents] = useState<string[]  >([]);
+
+
+const toggleSelect = (id: string) => {
+   
+  setSelectedEvents(prev =>
+    prev.includes(id) ? prev.filter(eid => eid !== id) : [...prev, id]
+  );
+};
+
+const handleDelete = async () => {
+  try {
+    console.log("hit1")
+    const res = await fetch('/api/habits/events/delete-multiple', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: selectedEvents }),
+    });
+
+    const result = await res.json();
+    console.log(result);
+
+    // Optionally refresh UI
+    onRefresh();
+  } catch (error) {
+   
+  }
+};
+
+
+useEffect(() => {
+  // Count hits and slips from events
+  const hits = data.events.filter(event => event.type === 'hit').length;
+  const slips = data.events.filter(event => event.type === 'slip').length;
+  setHitCount(hits);
+  setSlipCount(slips);
+}, [data.events]);
+
+useEffect(() => {
+  onRefresh()
+}, [expand])
 
 
 
@@ -102,8 +155,10 @@ async function handleDeleteHabit(habitId: string) {
 const recordEvent = async (type: 'hit' | 'slip') => {
   console.log("htislip")
   try {
+
+    
     // Show random message based on type
-  
+   
 
     console.log("tested")
 
@@ -116,6 +171,7 @@ const recordEvent = async (type: 'hit' | 'slip') => {
     });
     console.log(response)
    
+   
     if (!response.ok) {
       throw new Error('Failed to record event');
     }
@@ -123,9 +179,18 @@ const recordEvent = async (type: 'hit' | 'slip') => {
     // Update counts immediately
     if (type === 'hit') {
       setHitCount(prev => prev + 1);
+      onTriggerQuestion(data.id, "HIT")
+      
+      
     } else {
       setSlipCount(prev => prev + 1);
+      onTriggerQuestion(data.id, "SLIP")
+      
     }
+
+    
+
+    
 
     // Hide message after 3 seconds
     setTimeout(() => {
@@ -217,22 +282,34 @@ const recordEvent = async (type: 'hit' | 'slip') => {
     
     
     </CardFooter>
+    
     <div ref={divRef}>
-    <div className="ml-58   ">
+   
+    <div className=" flex items-center justify-between ">
+    {expand && ( <button className="flex items-center gap-2 px-10 py-2 text-sm text-red-600 hover:bg-red-100"
+            onClick={handleDelete}>
+            <Trash2 className="h-4 w-4" />
+          </button>)
+     }
+     <div className="ml-auto p-4">
       <ButtonDownAero onClick={(e: any) => {
       e.stopPropagation(); // ⬅️ this stops the div click
       setExpand(prev => !prev)
     }}></ButtonDownAero>
-      
+    </div>
+
      
       </div >
     {expand && (
        <div className="mx-4 w-62 h-40 overflow-y-auto bg-gray-100 border rounded shadow">
-      <EventTable />
+      <EventTable eventData={data.events} toggle={toggleSelect} selected={selectedEvents}/>
      
      </div>
       )}
       </div>
+     
+       
+      
   </Card>
   
   );

@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import HabitCard from '@/components/HabitCard';
 import NavigationMenuDemo from '@/components/Navbar';
 import Habit from '../habit/page';
+import Questions from '@/components/Questions'
+import Loading from '@/components/Loading';
 interface Habit {
   id: string;
   userId: string;
@@ -19,39 +21,64 @@ interface Habit {
   reflectionDepthOverride: number;
   hitDefinition: string;
   slipDefinition: string;
+  events: HabitEvent
+}
+
+export interface HabitEvent {
+  id: string;                   
+  habitId: string;            
+  userId: string;             
+  type: "HIT" | "SLIP";       
+  timestamp: Date;            
+  mood?: string;            
+  intensity?: number;       
+  reflectionNote?: string;  
+  emotionTags: string[];    
+  aiPromptUsed?: string;   
+  isReversal: boolean;        
 }
 
 export default function CardSwap ()  {
   const [isBig, setIsBig] = useState('A'); // Track which card is currently big
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  
+
+  const [habitId, setHabitId] = useState<string | null>(null);
+const [type, setType] = useState<"HIT" | "SLIP" | "">("");
   // Function to toggle the cards when a card is clicked
 
+  const fetchHabits = async () => {
+    try {
+      const res = await fetch('/api/habits');
+      if (!res.ok) throw new Error('Failed to fetch habits');
+
+      const data = await res.json();
+      setHabits(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   useEffect(() => {
-    const fetchHabits = async () => {
-      try {
-        const res = await fetch('/api/habits');
-        if (!res.ok) throw new Error('Failed to fetch habits');
-
-        const data = await res.json();
-        setHabits(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+   
     fetchHabits();
   }, []);
 
-  if (loading) return <div>Loading habits...</div>;
+
+
+  if (loading) return (<Loading />);
   const toggleCards = (card) => {
     setIsBig(card);
   };
 
 
-  console.log(habits)
+  
+
+  
   
 
   
@@ -76,7 +103,15 @@ export default function CardSwap ()  {
       { (
         habits.map((habit) => (
           <div key={habit.id} className="">
-           <HabitCard data={habit}/>
+          <HabitCard 
+  data={habit}
+  onRefresh={fetchHabits}
+  onTriggerQuestion={(habitId, eventType) => {
+    setHabitId(habitId);
+    setType(eventType);
+    setIsBig('B'); // Swap to Questions card
+  }}
+/>
           </div>
         ))
       )}
@@ -100,7 +135,7 @@ export default function CardSwap ()  {
         onClick={() => toggleCards('B')}
         className="w-90 h-100 bg-gray-800 flex justify-center items-center text-lg text-white rounded-md cursor-pointer absolute -translate-x-20"
       >
-        Card B
+       <Questions eventType={type} habitId={habitId} onComplete={toggleCards} />
       </motion.div>
     </div>
     </div>
