@@ -38,36 +38,36 @@ useEffect(() => {
 
   const removeTag = (index: number) => {
     const newTags = [...tags];
-    newTags.splice(index, 1);
+    newTags.slice(index, 1);
     setTags(newTags);
   };
 
   
 
   return (
-   <div className="w-full max-w-xl mx-auto ">
-     
-      <div className="flex gap-2      flex-col">
-        {tags.map((tag, index) => (
-          
-          <div
-            key={index}
-            className="flex items-between justify-between bg-blue-100 text-red-400 px-3 py-1 rounded-full text-sm font-medium w-auto"
-          >
-            {tag}
-            <button
-              onClick={() => removeTag(index)}
-              className="ml-2 text-blue-500 hover:text-blue-700 focus:outline-none"
-            >
-              &times;
-            </button>
-          </div>
-        ))}
- </div>
+    <div className="border w-47 ">
+   <div className="w-full max-w-xl mx-auto">
+  <div className="flex flex-wrap gap-2">
+    {tags.map((tag, index) => (
+      <div
+        key={index}
+        className="flex items-center justify-between bg-gray-300 text-gray-800 px-2 py-1 rounded-full text-sm font-medium"
+      >
+        <span>{tag}</span>
+        <button
+          onClick={() => removeTag(index)}
+          className="ml-2 text-blue-500 hover:text-blue-700 focus:outline-none"
+        >
+          &times;
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
  <div>
         <input
           type="text"
-          className="flex-grow outline-none px-2 py-1 text-sm border w-fulln m"
+          className="flex-grow outline-none px-2 py-1 text-gray-500 text-sm  w-fulln m"
           placeholder="Type and press Enter..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

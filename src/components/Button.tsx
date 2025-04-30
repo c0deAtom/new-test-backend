@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 
 export function ButtonIcon({ onClick }: { onClick?: () => void }) {
   return (
-    <Button variant="outline" size="icon" onClick={onClick}>
+    <Button variant="outline" size="lg" onClick={onClick}>
       <Plus />
     </Button>
   )

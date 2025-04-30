@@ -62,9 +62,10 @@ export default function Habits() {
   }
 
   return (
-    <div>
+    
+    <div className="bg-gray-400 py-5">
       <Navbar />
-      <div className="px-30 py-10 flex flex-wrap  gap-24  bg-gray-400 min-h-screen">
+      <div className="px-50 py-10 flex flex-wrap  gap-10  bg-gray-400 min-h-screen">
         
         {habits.map((habit) => (
           <div 
@@ -80,15 +81,18 @@ export default function Habits() {
 
         {/* Add new habit card */}
         {addNewHabit && (
-          <div className='bg-white text-black flex flex-col gap-4 rounded-xl border p-4 shadow-md w-72 h-90'>
-            <div className="ml-auto">
-              <CrossCloseButton onClick={() => setAddNewHabit(false)} />
+          <div className=" rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md shadow-6xl shadow-gray-900 hover:shadow-2xl hover:-translate-y-1 transform transition-all duration-300 h-80">
+          <div className="bg-gradient-to-r from-gray-400 via-gray-400 to-gray-500 text-white flex flex-col gap-2 rounded-xl border py-4 px-6 w-72 h-80">
+            <div className=" flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-800 mx-4">Add a New Habit</h2>
+              <CrossCloseButton onClick={() => setAddNewHabit(false)} /> 
+                
             </div>
             <AddHabitForm 
               onSubmit={() => setAddNewHabit(false)} 
               onRefresh={fetchHabits} 
             />
-          </div>
+          </div></div>
         )}
 
         {/* Plus button to add a new habit */}
@@ -100,5 +104,6 @@ export default function Habits() {
       {/* Habit Drawer */}
      
     </div>
+    
   );
 }

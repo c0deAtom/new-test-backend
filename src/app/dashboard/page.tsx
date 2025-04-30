@@ -1,51 +1,23 @@
-
 'use client'
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import HabitCard from '@/components/HabitCard';
-import NavigationMenuDemo from '@/components/Navbar';
-import Habit from '../habit/page';
+import Navbar from '@/components/Navbar';
 import Questions from '@/components/Questions'
 import Loading from '@/components/Loading';
-interface Habit {
-  id: string;
-  userId: string;
-  name: string;
-  goalType: string;
-  microGoal: string;
-  triggers: string[];
-  cravingNarrative: string;
-  resistanceStyle: string;
-  motivationOverride: string;
-  reflectionDepthOverride: number;
-  hitDefinition: string;
-  slipDefinition: string;
-  events: HabitEvent
-}
+import { Habit, HabitEvent } from '@/lib/types';
 
-export interface HabitEvent {
-  id: string;                   
-  habitId: string;            
-  userId: string;             
-  type: "HIT" | "SLIP";       
-  timestamp: Date;            
-  mood?: string;            
-  intensity?: number;       
-  reflectionNote?: string;  
-  emotionTags: string[];    
-  aiPromptUsed?: string;   
-  isReversal: boolean;        
-}
+type CardId = 'A' | 'B'; // Define type for card identifier
 
 export default function CardSwap ()  {
-  const [isBig, setIsBig] = useState('A'); // Track which card is currently big
+  const [isBig, setIsBig] = useState<CardId>('A'); // Use CardId type
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   
 
   const [habitId, setHabitId] = useState<string | null>(null);
-const [type, setType] = useState<"HIT" | "SLIP" | "">("");
+  const [type, setType] = useState<"HIT" | "SLIP" | null>(null); // Allow null initially
   // Function to toggle the cards when a card is clicked
 
   const fetchHabits = async () => {
@@ -71,9 +43,32 @@ const [type, setType] = useState<"HIT" | "SLIP" | "">("");
 
 
   if (loading) return (<Loading />);
-  const toggleCards = (card) => {
+  const toggleCards = (card: CardId) => {
     setIsBig(card);
+    // Reset habitId and type when toggling away from Questions (Card B)
+    if (card === 'A') {
+        setHabitId(null);
+        setType(null);
+    }
   };
+
+
+  const getLatestEvents = (habit: Habit): HabitEvent[] => {
+    const events = Array.isArray(habit.events) ? habit.events : [];
+    // Parse timestamp string to Date for sorting
+    return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  };
+
+  // Sort all habits by their most recent event timestamp
+  const sortedHabits = habits
+    .map(habit => {
+      const latestEvent = getLatestEvents(habit)[0];
+      // Parse timestamp string to Date for comparison, handle undefined latestEvent
+      const latestEventTimestamp = latestEvent ? new Date(latestEvent.timestamp) : new Date(0); // Use epoch if no event
+      return { ...habit, latestEventTimestamp }; // Store the Date object for sorting
+    })
+    .sort((a, b) => b.latestEventTimestamp.getTime() - a.latestEventTimestamp.getTime())
+    .slice(0, 2);
 
 
   
@@ -85,7 +80,7 @@ const [type, setType] = useState<"HIT" | "SLIP" | "">("");
 
   return (
     <div>
-      <NavigationMenuDemo />
+      <Navbar />
     <div className="flex justify-center items-center space-x-6 relative w-full h-screen bg-gray-400">
       {/* Card A */}
       <motion.div
@@ -97,11 +92,13 @@ const [type, setType] = useState<"HIT" | "SLIP" | "">("");
         }}
         transition={{  type: "tween", ease: "easeInOut", duration: 0.6}}
         onClick={() => toggleCards('A')}
-        className=" w-130 h-100 bg-gray-800 flex justify-center items-center text-lg text-white rounded-md cursor-pointer absolute transform -translate-x-40">
+        className=" w-130 h-100 bg-gray-800 px-20  text-lg text-white rounded-md cursor-pointer absolute transform -translate-x-40">
+     <h1 className='py-2 px-8'> Recents Habits</h1>
+     
       <div className="w-48 h-64 scale-40 flex items-center justify-center gap-8">
    
       { (
-        habits.map((habit) => (
+        sortedHabits.map((habit) => (
           <div key={habit.id} className="">
           <HabitCard 
   data={habit}
@@ -135,7 +132,10 @@ const [type, setType] = useState<"HIT" | "SLIP" | "">("");
         onClick={() => toggleCards('B')}
         className="w-90 h-100 bg-gray-800 flex justify-center items-center text-lg text-white rounded-md cursor-pointer absolute -translate-x-20"
       >
-       <Questions eventType={type} habitId={habitId} onComplete={toggleCards} />
+       {/* Conditionally render Questions only when habitId and type are set */}
+       {isBig === 'B' && habitId && type && (
+         <Questions eventType={type} habitId={habitId} onComplete={() => toggleCards('A')} />
+       )}
       </motion.div>
     </div>
     </div>

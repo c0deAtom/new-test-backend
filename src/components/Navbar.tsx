@@ -1,10 +1,9 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import Link from "next/link"
-
-import { cn } from "@/lib/utils"
-
+import Link from 'next/link';
+import * as React from "react";
+import { useState } from 'react'; // Keep state for dropdown if needed, though DropdownMenu handles its own state.
+import { User, LogOut, Settings, LayoutDashboard, Target } from 'lucide-react'; // Import icons
 
 import {
   NavigationMenu,
@@ -14,83 +13,88 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu"
+} from "@/components/ui/navigation-menu"; // Import Shadcn NavigationMenu components
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Corrected import path
 
-export default function NavigationMenuDemo() {
+import { Button } from "@/components/ui/button"; // Import Shadcn Button
+
+export default function Navbar() {
+  // Dropdown state is handled by DropdownMenuTrigger/DropdownMenuContent
+
   return (
-    <NavigationMenu>
-      <NavigationMenuList>
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>Manish</NavigationMenuTrigger>
-          <NavigationMenuContent>
-          
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-      
-        <NavigationMenuItem>
-          <Link href="/dashboard" legacyBehavior passHref>
-            <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-              DashBoard
-            </NavigationMenuLink>
-          </Link>
-        </NavigationMenuItem>
+    <nav className="border-b px-4 py-2">
+      <div className="max-w-screen-xl mx-auto flex justify-between items-center">
+        <Link href="/" className="text-lg font-semibold">
+          Welcome {/* Or maybe an App Logo/Name */}
+        </Link>
 
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>Menu</NavigationMenuTrigger>
-          <NavigationMenuContent >
-            <div className="">
-            <ul className="grid w-[400px] gap-3  md:w-[200px] md:grid-raw-2 lg:w-[200px] ">
-             
-                <ListItem
-                  key={""}
-                  title={"Habits"}
-                  href={"habits"}
-                >
-                 
-                </ListItem>
+        <div className="flex items-center gap-4">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem asChild>
+                <Link href="/dashboard" passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem asChild>
+                <Link href="/habits" passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    <Target className="mr-2 h-4 w-4" /> Habits
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              {/* Add more navigation items here if needed */}
+            </NavigationMenuList>
+          </NavigationMenu>
 
-                <ListItem
-                  key={""}
-                  title={"User"}
-                  href={"user"}
-                >
-                 
-                </ListItem>
-    
-            </ul>
-            </div>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
+          {/* Profile Dropdown using Shadcn DropdownMenu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <User className="h-4 w-4" />
+                <span className="sr-only">Open user menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                 <Link href="/profile" className="flex items-center w-full">
+                   <Settings className="mr-2 h-4 w-4" />
+                   <span>Profile</span>
+                 </Link>
+              </DropdownMenuItem>
+              {/* Add other items like Settings, Billing etc. if needed */}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/logout" className="flex items-center w-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </Link>
+              </DropdownMenuItem>
+               <DropdownMenuSeparator />
+               <DropdownMenuItem asChild>
+                <Link href="/login" className="flex items-center w-full">
+                  {/* Using LogOut icon temporarily, replace if a specific login icon is preferred */}
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log In</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        
-      </NavigationMenuList>
-    </NavigationMenu>
-  )
+        </div>
+      </div>
+    </nav>
+  );
 }
-
-const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => {
-  return (
-    <li>
-      <NavigationMenuLink asChild>
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className
-          )}
-          {...props}
-        >
-          <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        </a>
-      </NavigationMenuLink>
-    </li>
-  )
-})
-ListItem.displayName = "ListItem"

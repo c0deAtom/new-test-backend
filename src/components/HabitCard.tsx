@@ -1,316 +1,343 @@
 'use client'
 
-import { ButtonDownAero, ButtonIcon } from "@/components/Button";
-import { Pencil, Trash2 } from "lucide-react";
+// import { ButtonDownAero, ButtonIcon } from "@/components/Button"; // Removed custom button imports
+import { Pencil, Trash2, Check, X, MoreVertical, Plus } from "lucide-react"; // Added icons
 import { useState, useEffect, useRef } from "react";
-import { EventTable } from "./EventTable";
-import { HabitEvent } from "@/app/dashboard/page";
+import EventTable from "./events/Events";
+import { Habit, HabitEvent } from "@/lib/types";
 import { HabitDrawer } from "./HabitDrawer";
+import { clsx } from 'clsx';
+import { Button } from "@/components/ui/button"; // Use shadcn Button directly
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu"; // For edit/delete actions
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog" // For delete confirmation
 
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-  } from "@/components/ui/card"
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
+function calculateCombo(events: HabitEvent[]) {
+  if (!events || events.length === 0) return null;
 
-  export type Habit = {
-    id: string;
-    userId: string;
-    name: string;
-    goalType?: string;              // "reduce" | "eliminate" (optional)
-    microGoal?: string;
-    triggers: string[];             // array of strings like ['evening', 'stress']
-    cravingNarrative?: string;
-    resistanceStyle?: string;
-    motivationOverride?: string;
-    reflectionDepthOverride?: number;
-    hitDefinition?: string;
-    slipDefinition?: string;
-    createdAt: string;              // usually ISO date string from server
-    updatedAt: string;
-    events: HabitEvent
+  const sortedEvents = [...events].sort((a, b) => {
+    // Timestamps are strings, parse them
+    const timestampA = new Date(a.timestamp).getTime();
+    const timestampB = new Date(b.timestamp).getTime();
+    return timestampB - timestampA;
+  });
 
-  };
-  
-  
+  let latestType = sortedEvents[0].type;
+  let comboCount = 1;
 
-export default function HabitCard({ data, onRefresh, onTriggerQuestion }: { 
+  // Loop through the events to find consecutive occurrences of the same type
+  for (let i = 1; i < sortedEvents.length; i++) {
+    if (sortedEvents[i].type === latestType) {
+      comboCount++; // Increment the combo count for consecutive same type
+    } else {
+      break; // Break the loop if the type changes (streak is broken)
+    }
+  }
+
+  // Determine combo color based on the event type
+  let comboColor = latestType === 'HIT' ? 'green' : 'red'; // Assuming 'HIT' is green and 'SLIP' is red
+
+  // Return JSX element if combo count is 2 or more
+  if (comboCount >= 2) {
+    // Ensure comboColor is a valid Tailwind text color class part
+    const colorClass = comboColor === 'green' ? 'text-green-700' : 'text-red-700'; 
+    return <div className={colorClass}>x{comboCount}</div>;
+  }
+
+  return null;
+}
+
+export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   data: Habit;
   onRefresh: () => void;
   onTriggerQuestion?: (habitId: string, type: "HIT" | "SLIP") => void;
+}) {
+  // const [showMenu, setShowMenu] = useState(false) // Replaced by DropdownMenu
+  const [expand, setExpand] = useState(false) // Keep expand state for now
+  const divRef = useRef<HTMLDivElement>(null)
+  const [hitCount, setHitCount] = useState(0);
+  const [slipCount, setSlipCount] = useState(0);
 
-})  {
-const [showMenu, setShowMenu] = useState(false)
-const [expand, setExpand] = useState(false)
-const divRef = useRef<HTMLDivElement>(null)
-const [hitCount, setHitCount] = useState(0);
-const [slipCount, setSlipCount] = useState(0);
+  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  // const [confirming, setConfirming] = useState(false); // Replaced by AlertDialog
+  const isHitDominant = hitCount >= slipCount;
+  const [mess, setMess] = useState("")
+  // const [showConfirm, setShowConfirm] = useState(false); // Replaced by AlertDialog
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // State for edit drawer
+  const [combo, setCombo] = useState<React.ReactNode>(null);
 
-const [selectedEvents, setSelectedEvents] = useState<string[]  >([]);
-
-
-const toggleSelect = (id: string) => {
-   
-  setSelectedEvents(prev =>
-    prev.includes(id) ? prev.filter(eid => eid !== id) : [...prev, id]
-  );
-};
-
-const handleDelete = async () => {
-  try {
-    console.log("hit1")
-    const res = await fetch('/api/habits/events/delete-multiple', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ids: selectedEvents }),
-    });
-
-    const result = await res.json();
-    console.log(result);
-
-    // Optionally refresh UI
-    onRefresh();
-  } catch (error) {
-   
-  }
-};
-
-
-useEffect(() => {
-  // Count hits and slips from events
-  const hits = data.events.filter(event => event.type === 'hit').length;
-  const slips = data.events.filter(event => event.type === 'slip').length;
-  setHitCount(hits);
-  setSlipCount(slips);
-}, [data.events]);
-
-useEffect(() => {
-  onRefresh()
-}, [expand])
-
-
-
-useEffect(() => {
-  function handleClickOutside(event: MouseEvent) {
-    if (divRef.current && !divRef.current.contains(event.target as Node)) {
-      setExpand(false);
-      setShowMenu(false)
-    }
-  }
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
+  const toggleSelect = (id: string) => {
+    setSelectedEvents(prev =>
+      prev.includes(id) ? prev.filter(eid => eid !== id) : [...prev, id]
+    );
   };
-}, []);
 
-
-
-async function handleDeleteHabit(habitId: string) {
-  
-  const confirmed = confirm('Are you sure you want to delete this habit?');
-  if (!confirmed) return;
-
-  try {
-    console.log("sdddd")
-    const res = await fetch('/api/habits', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ id: habitId }),
-    });
-
-    
-
-   
-
-    if (res.ok) {
-      console.log('Habit deleted successfully');
-      onRefresh()
-
-   
-    
-      
-      // Optionally, refresh the habits list here
-    } else {
-      const errorData = await res.json();
-      console.error('Failed to delete habit:', errorData.message);
+  const handleDeleteSelectedEvents = async () => {
+    if (selectedEvents.length === 0) return;
+    try {
+      const res = await fetch('/api/habits/events/delete-multiple', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedEvents }),
+      });
+      if (res.ok) {
+        onRefresh();
+        setSelectedEvents([]); // Clear selection
+      } else {
+        console.error("Failed to delete events");
+      }
+    } catch (error) {
+      console.error('Error deleting events:', error);
     }
-  } catch (error) {
-    console.error('Error deleting habit:', error);
+  };
+
+  useEffect(() => {
+    const currentEvents = Array.isArray(data.events) ? data.events : [];
+    const hits = currentEvents.filter(event => event.type === 'HIT').length;
+    const slips = currentEvents.filter(event => event.type === 'SLIP').length;
+    setHitCount(hits);
+    setSlipCount(slips);
+    const comboResult = calculateCombo(currentEvents);
+    setCombo(comboResult);
+  }, [data.events]);
+
+  // Removed outside click handler useEffect for menu, DropdownMenu handles it
+
+  // Renamed handleDelete to handleDeleteHabitConfirmed to avoid conflict
+  async function handleDeleteHabitConfirmed(habitId: string) {
+    try {
+      const res = await fetch('/api/habits', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: habitId }),
+      });
+      if (res.ok) {
+        console.log('Habit deleted successfully');
+        onRefresh();
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to delete habit:', errorData.message);
+      }
+    } catch (error) {
+      console.error('Error deleting habit:', error);
+    }
   }
-}
 
+  const recordEvent = async (type: 'HIT' | 'SLIP') => {
+     console.log("Recording event:", type, "for habit:", data.id);
+    try {
+      const response = await fetch(`/api/habits/${data.id}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      console.log("API Response:", response);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Failed to record event. Status:", response.status, "Body:", errorBody);
+        throw new Error(`Failed to record event: ${response.statusText}`);
+      }
 
+       // Trigger refresh after successful recording
+      onRefresh();
 
+      // Trigger question prompt if handler exists
+      if (onTriggerQuestion) {
+          console.log("Triggering question prompt...");
+          onTriggerQuestion(data.id, type);
+      }
 
-
-
-const recordEvent = async (type: 'hit' | 'slip') => {
-  console.log("htislip")
-  try {
-
-    
-    // Show random message based on type
-   
-
-    console.log("tested")
-
-    const response = await fetch(`/api/habits/${data.id}/events`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ type }),
-    });
-    console.log(response)
-   
-   
-    if (!response.ok) {
-      throw new Error('Failed to record event');
+    } catch (error) {
+      console.error('Error recording event:', error);
+      // TODO: Show user feedback about the error
     }
-
-    // Update counts immediately
-    if (type === 'hit') {
-      setHitCount(prev => prev + 1);
-      onTriggerQuestion(data.id, "HIT")
-      
-      
-    } else {
-      setSlipCount(prev => prev + 1);
-      onTriggerQuestion(data.id, "SLIP")
-      
-    }
-
-    
-
-    
-
-    // Hide message after 3 seconds
-    setTimeout(() => {
-     
-    }, 3000);
-  } catch (error) {
-    console.error('Error recording event:', error);
-  }
-};
-
-
-
+  };
 
 
   return (
-    <Card>
-      
-      
-      <CardHeader>
-      
-
-
-
-        <div className="ml-auto">
-          <button
-            onClick={() => handleDeleteHabit(data.id)} 
-            className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-100"
+    <Card ref={divRef} className={clsx(
+      "w-full max-w-sm transition-all duration-300", // Adjusted width and added transition
+      {
+        "ring-2 ring-green-500": isHitDominant && combo && hitCount > slipCount, // Example conditional styling
+        "ring-2 ring-red-500": !isHitDominant && combo && slipCount > hitCount,
+      }
+    )}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          {data.name}
+        </CardTitle>
+        <div className="flex items-center space-x-1">
+          {combo} {/* Display calculated combo */}
+          {/* Edit/Delete Dropdown */} 
+          <DropdownMenu>
+             <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-6 h-6">
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Habit options</span>
+                </Button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsDrawerOpen(true)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    <span>Edit</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                 {/* Delete Habit Confirmation */} 
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <DropdownMenuItem 
+                            onSelect={(e: React.SyntheticEvent) => e.preventDefault()} // Added type for 'e'
+                            className="text-red-600 focus:text-red-700 focus:bg-red-100"
+                        >
+                           <Trash2 className="mr-2 h-4 w-4" />
+                           <span>Delete Habit</span>
+                        </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the habit
+                            '{data.name}' and all its associated events.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={() => handleDeleteHabitConfirmed(data.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+             </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent className="pb-3">
+        <div className="text-xs text-muted-foreground">
+          {data.microGoal || 'No micro-goal set'}
+        </div>
+        <div className="flex justify-around items-center pt-4">
+          {/* Hit Button */}
+          <Button
+            variant="outline"
+            size="lg" // Make buttons larger
+            className="flex-1 mr-2 border-green-500 text-green-700 hover:bg-green-100 hover:text-green-800"
+            onClick={(e) => {
+              e.stopPropagation(); 
+              recordEvent('HIT');
+            }}
           >
-            <Trash2 className="h-4 w-4" />
-          
-          </button>
-          </div>
-    
+            <Check className="mr-2 h-5 w-5" /> Hit ({hitCount})
+          </Button>
 
+          {/* Slip Button */}
+          <Button
+            variant="outline"
+            size="lg" // Make buttons larger
+            className="flex-1 ml-2 border-red-500 text-red-700 hover:bg-red-100 hover:text-red-800"
+            onClick={(e) => {
+              e.stopPropagation();
+              recordEvent('SLIP');
+            }}
+          >
+             <X className="mr-2 h-5 w-5" /> Slip ({slipCount})
+          </Button>
+        </div>
+      </CardContent>
+      {/* Expand/Collapse Footer - using Button for now, could be Accordion/Collapsible later */}
+      <CardFooter className="pt-2 pb-2">
+         <Button variant="ghost" size="sm" onClick={() => setExpand(!expand)} className="w-full justify-center text-xs">
+            {expand ? 'Hide' : 'Show'} History
+         </Button>
+      </CardFooter>
 
-      <CardTitle>{data.name}</CardTitle>
-    
-     
-      <CardDescription></CardDescription>
-     
-    </CardHeader>
-    <CardContent>
-   
-   
-      <p>Card Content</p>
-    </CardContent>
-   
-    <CardFooter className="flex justify-between">
-       
-       <div className="flex flex-col items-center">
-         <button
-           onClick={(e) => {
-             e.stopPropagation(); // Prevents the card click event
-             recordEvent('hit');
-           }}
-
-           className="bg-green-500 text-white px-6 py-3 rounded-xl hover:bg-green-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-         >
-           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-           </svg>
-         </button>
-         <span className="mt-3 text-2xl font-bold text-green-700">{hitCount}</span>
-         <span className="text-sm text-gray-500">Hits</span>
-       </div>
-
-      
-
-       <div className="flex flex-col items-center">
-         <button
-           onClick={(e) => {
-             e.stopPropagation();
-             recordEvent('slip');
-           }}
-           className="bg-red-500 text-white px-6 py-3 rounded-xl hover:bg-red-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-         >
-           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-           </svg>
-         </button>
-         <span className="mt-3 text-2xl font-bold text-red-700">{slipCount}</span>
-         <span className="text-sm text-gray-500">Slips</span>
-       </div>
-       
-       
-   
-
-   
-    
-    
-    </CardFooter>
-    
-    <div ref={divRef}>
-   
-    <div className=" flex items-center justify-between ">
-    {expand && ( <button className="flex items-center gap-2 px-10 py-2 text-sm text-red-600 hover:bg-red-100"
-            onClick={handleDelete}>
-            <Trash2 className="h-4 w-4" />
-          </button>)
-     }
-     <div className="ml-auto p-4">
-      <ButtonDownAero onClick={(e: any) => {
-      e.stopPropagation(); // ⬅️ this stops the div click
-      setExpand(prev => !prev)
-    }}></ButtonDownAero>
-    </div>
-
-     
-      </div >
-    {expand && (
-       <div className="mx-4 w-62 h-40 overflow-y-auto bg-gray-100 border rounded shadow">
-      <EventTable eventData={data.events} toggle={toggleSelect} selected={selectedEvents}/>
-     
-     </div>
+      {/* Expanded Content */} 
+      {expand && (
+        <CardContent className="border-t pt-3 pb-3">
+           {/* Button to delete selected events */} 
+            {selectedEvents.length > 0 && (
+                <div className="mb-2 flex justify-end">
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-1 h-3 w-3" /> Delete Selected ({selectedEvents.length})
+                           </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Selected Events?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete the {selectedEvents.length} selected event(s).
+                                This action cannot be undone.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setSelectedEvents([])}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                                onClick={handleDeleteSelectedEvents}
+                                className="bg-red-600 hover:bg-red-700"
+                            >
+                                Delete Events
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            )}
+            {(() => { // IIFE to map events before passing to EventTable
+              const eventsForTable = (Array.isArray(data.events) ? data.events : []).map(he => ({
+                  id: he.id,
+                  type: he.type.toLowerCase() as 'hit' | 'slip', // Map to lowercase
+                  notes: he.reflectionNote || null, // Map reflectionNote to notes
+                  createdAt: he.timestamp, // Map timestamp to createdAt
+                  habitName: data.name // Get habit name from parent data
+              }));
+              return (
+                <EventTable 
+                  events={eventsForTable} 
+                  selected={selectedEvents}
+                  toggle={toggleSelect}
+                />
+              );
+            })()}
+        </CardContent>
       )}
-      </div>
-     
-       
-      
-  </Card>
-  
+
+      {/* Edit Drawer */}
+       <HabitDrawer 
+        isOpen={isDrawerOpen} 
+        setIsOpen={setIsDrawerOpen} 
+        habitData={data} 
+        onHabitUpdated={onRefresh} 
+      />
+    </Card>
   );
 }

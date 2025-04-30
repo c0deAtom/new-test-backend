@@ -12,7 +12,7 @@ import {
   TableCell,
   TableCaption,
 } from '@/components/ui/table';
-import { Habit } from '@prisma/client';
+// import { Habit } from '@prisma/client'; // Removed unused import
 
 type Event = {
   id: string;
@@ -24,7 +24,7 @@ type Event = {
 
 
 
-export default function EventsTable({ events, toggle, selected, }: { events: Event[], toggle: (id: string) => void, selected: [], }) {
+export default function EventsTable({ events, toggle, selected, }: { events: Event[], toggle: (id: string) => void, selected: string[], }) {
 
 
    
@@ -40,7 +40,7 @@ export default function EventsTable({ events, toggle, selected, }: { events: Eve
         </TableRow>
       </TableHeader>
       <TableBody >
-        {events.map((event) => (
+        {events.map((event: any) => (
           <TableRow key={event.id} className="" >
               <input className='mx-7 my-3 w-5 h-5'
                 type="checkbox"
