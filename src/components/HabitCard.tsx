@@ -26,7 +26,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog" // For delete confirmation
-
 import {
   Card,
   CardContent,
@@ -35,6 +34,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Checkbox } from "@/components/ui/checkbox"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import React from "react"
 
 function calculateCombo(events: HabitEvent[]) {
   if (!events || events.length === 0) return null;
@@ -74,7 +83,7 @@ function calculateCombo(events: HabitEvent[]) {
 export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   data: Habit;
   onRefresh: () => void;
-  onTriggerQuestion?: (habitId: string, type: "HIT" | "SLIP") => void;
+  onTriggerQuestion?: (habitId: string, type: "HIT" | "SLIP", eventId: string, habitName: string) => void;
 }) {
   // const [showMenu, setShowMenu] = useState(false) // Replaced by DropdownMenu
   const [expand, setExpand] = useState(false) // Keep expand state for now
@@ -83,7 +92,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   const [slipCount, setSlipCount] = useState(0);
 
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
-  // const [confirming, setConfirming] = useState(false); // Replaced by AlertDialog
+  const [confirmDeleteEvents, setConfirmDeleteEvents] = useState(false);
+  const confirmRef = useRef<HTMLDivElement>(null);
   const isHitDominant = hitCount >= slipCount;
   const [mess, setMess] = useState("")
   // const [showConfirm, setShowConfirm] = useState(false); // Replaced by AlertDialog
@@ -125,7 +135,43 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     setCombo(comboResult);
   }, [data.events]);
 
-  // Removed outside click handler useEffect for menu, DropdownMenu handles it
+  // Compute numeric combo streak for shading
+  const streakCount = React.useMemo(() => {
+    if (!data.events || data.events.length === 0) return 0;
+    const sorted = [...data.events].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    let count = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].type === sorted[0].type) count++;
+      else break;
+    }
+    return count;
+  }, [data.events]);
+
+  // Compute dynamic boxShadow based on combo streak
+  const dynamicBoxShadow = React.useMemo(() => {
+    // Only apply if there's a streak of at least 2
+    if (streakCount < 2 || !data.events?.length) return undefined;
+    // Determine latest event type for shadow color
+    const sorted = [...data.events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const latestType = sorted[0].type;
+    const color = latestType === 'HIT' ? '34,197,94' : '239,68,68';
+    const blur = 10 * streakCount;
+    const spread = 5 * streakCount;
+    return `0 0 ${blur}px ${spread}px rgba(${color}, 0.5)`;
+  }, [streakCount, data.events]);
+
+  // Detect clicks outside the confirm button group to cancel confirmation
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (confirmDeleteEvents && confirmRef.current && !confirmRef.current.contains(event.target as Node)) {
+        setConfirmDeleteEvents(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [confirmDeleteEvents]);
 
   // Renamed handleDelete to handleDeleteHabitConfirmed to avoid conflict
   async function handleDeleteHabitConfirmed(habitId: string) {
@@ -162,13 +208,19 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         throw new Error(`Failed to record event: ${response.statusText}`);
       }
 
-       // Trigger refresh after successful recording
+      const newEvent = await response.json(); // Assuming API returns the created event
+
+      // Trigger refresh after successful recording
       onRefresh();
 
       // Trigger question prompt if handler exists
       if (onTriggerQuestion) {
-          console.log("Triggering question prompt...");
-          onTriggerQuestion(data.id, type);
+        if (newEvent && newEvent.id) {
+          console.log(`Triggering question prompt for event ID: ${newEvent.id}...`);
+          onTriggerQuestion(data.id, type, newEvent.id, data.name); // Pass eventId and name
+        } else {
+          console.warn("Could not get event ID from response, cannot trigger question.");
+        }
       }
 
     } catch (error) {
@@ -179,13 +231,17 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
 
 
   return (
-    <Card ref={divRef} className={clsx(
-      "w-full max-w-sm transition-all duration-300", // Adjusted width and added transition
-      {
-        "ring-2 ring-green-500": isHitDominant && combo && hitCount > slipCount, // Example conditional styling
-        "ring-2 ring-red-500": !isHitDominant && combo && slipCount > hitCount,
-      }
-    )}>
+    <Card
+      ref={divRef}
+      style={ dynamicBoxShadow ? { boxShadow: dynamicBoxShadow } : undefined }
+      className={clsx(
+        "w-full max-w-sm transition-all duration-300 ",
+        {
+          "ring-2 ring-green-500": isHitDominant && combo && hitCount > slipCount,
+          "ring-2 ring-red-500": !isHitDominant && combo && slipCount > hitCount,
+        }
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">
           {data.name}
@@ -195,13 +251,23 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
           {/* Edit/Delete Dropdown */} 
           <DropdownMenu>
              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-6 h-6">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="w-6 h-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
                     <MoreVertical className="h-4 w-4" />
                     <span className="sr-only">Habit options</span>
                 </Button>
              </DropdownMenuTrigger>
              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsDrawerOpen(true)}>
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDrawerOpen(true);
+                  }}
+                >
                     <Pencil className="mr-2 h-4 w-4" />
                     <span>Edit</span>
                 </DropdownMenuItem>
@@ -210,7 +276,10 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <DropdownMenuItem 
-                            onSelect={(e: React.SyntheticEvent) => e.preventDefault()} // Added type for 'e'
+                            onSelect={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }}
                             className="text-red-600 focus:text-red-700 focus:bg-red-100"
                         >
                            <Trash2 className="mr-2 h-4 w-4" />
@@ -272,64 +341,77 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
           </Button>
         </div>
       </CardContent>
-      {/* Expand/Collapse Footer - using Button for now, could be Accordion/Collapsible later */}
-      <CardFooter className="pt-2 pb-2">
-         <Button variant="ghost" size="sm" onClick={() => setExpand(!expand)} className="w-full justify-center text-xs">
-            {expand ? 'Hide' : 'Show'} History
-         </Button>
-      </CardFooter>
 
-      {/* Expanded Content */} 
-      {expand && (
-        <CardContent className="border-t pt-3 pb-3">
-           {/* Button to delete selected events */} 
-            {selectedEvents.length > 0 && (
-                <div className="mb-2 flex justify-end">
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                           <Button variant="destructive" size="sm">
-                                <Trash2 className="mr-1 h-3 w-3" /> Delete Selected ({selectedEvents.length})
-                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Selected Events?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently delete the {selectedEvents.length} selected event(s).
-                                This action cannot be undone.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setSelectedEvents([])}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                                onClick={handleDeleteSelectedEvents}
-                                className="bg-red-600 hover:bg-red-700"
-                            >
-                                Delete Events
-                            </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </div>
-            )}
-            {(() => { // IIFE to map events before passing to EventTable
-              const eventsForTable = (Array.isArray(data.events) ? data.events : []).map(he => ({
-                  id: he.id,
-                  type: he.type.toLowerCase() as 'hit' | 'slip', // Map to lowercase
-                  notes: he.reflectionNote || null, // Map reflectionNote to notes
-                  createdAt: he.timestamp, // Map timestamp to createdAt
-                  habitName: data.name // Get habit name from parent data
-              }));
-              return (
-                <EventTable 
-                  events={eventsForTable} 
-                  selected={selectedEvents}
-                  toggle={toggleSelect}
+      <CardContent className="border-t pt-2 px-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="h-6 text-[10px] font-medium text-muted-foreground">Recent Activity</span>
+          {selectedEvents.length > 0 && (
+            <div ref={confirmRef} onClick={(e) => e.stopPropagation()} className="h-6 flex items-center space-x-1">
+              {confirmDeleteEvents ? (
+                <>
+                  <Button variant="destructive" size="sm" className="text-[10px] h-6" onClick={() => { handleDeleteSelectedEvents(); setConfirmDeleteEvents(false); }}>Yes</Button>
+                  <Button variant="outline" size="sm" className="text-[10px] h-6" onClick={() => setConfirmDeleteEvents(false)}>No</Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteEvents(true); }}
+                >
+                  <Trash2 className="mr-1 h-3 w-3" />
+                  {selectedEvents.length}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+        
+        <ScrollArea className="h-24">
+          <div className="space-y-0.5">
+            {data.events
+              ?.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+              .slice(0, 5)
+              .map((event) => (
+              <div
+                key={event.id}
+                className={cn(
+                  "flex items-center gap-1.5 py-1 text-[10px] rounded-sm hover:bg-muted/50 px-1 gap-6",
+                  selectedEvents.includes(event.id) && "bg-muted"
+                )}
+              >
+                <Checkbox
+                  className="h-3 w-3"
+                  checked={selectedEvents.includes(event.id)}
+                  onCheckedChange={() => {
+                    setSelectedEvents(prev =>
+                      prev.includes(event.id)
+                        ? prev.filter(id => id !== event.id)
+                        : [...prev, event.id]
+                    )
+                  }}
                 />
-              );
-            })()}
-        </CardContent>
-      )}
+                <span className={cn(
+                  "h-5 w-20 inline-flex items-center rounded-sm px-1 py-0.5 font-medium min-w-[32px] justify-center",
+                  event.type === 'HIT' 
+                    ? "bg-green-100 text-green-700" 
+                    : "bg-red-100 text-red-700"
+                )}>
+                  {event.type}
+                </span>
+                <span className="text-muted-foreground text-lg min-w-[85px]">
+                  {format(new Date(event.timestamp), 'MMM d, h:mm a')}
+                </span>
+              </div>
+            ))}
+            {(!data.events || data.events.length === 0) && (
+              <div className="py-2 text-[10px] text-muted-foreground text-center">
+                No events recorded
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
 
       {/* Edit Drawer */}
        <HabitDrawer 
