@@ -53,7 +53,7 @@ export function QuestionPromptModal({ isOpen, onOpenChange, context, onSubmit }:
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid w-full gap-1.5">
-            <Label htmlFor="answer">Your thoughts</Label>
+            <Label htmlFor="answer">Your thosdfsughts</Label>
             <Textarea
               id="answer"
               placeholder="Type your reflection here..."

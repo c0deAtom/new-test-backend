@@ -19,7 +19,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,6 +84,11 @@ export function AnimatedHabitCard({ habit, isOpen, onClose, onRefresh }: Animate
     microGoal: habit?.microGoal || '',
     triggers: habit?.triggers?.join(', ') || '',
     resistanceStyle: habit?.resistanceStyle || '',
+    cravingNarrative: habit?.cravingNarrative || '',
+    motivationOverride: habit?.motivationOverride || '',
+    reflectionDepthOverride: habit?.reflectionDepthOverride?.toString() || '',
+    hitDefinition: habit?.hitDefinition || '',
+    slipDefinition: habit?.slipDefinition || '',
   }));
 
   useEffect(() => {
@@ -95,6 +99,11 @@ export function AnimatedHabitCard({ habit, isOpen, onClose, onRefresh }: Animate
         microGoal: habit.microGoal,
         triggers: habit.triggers.join(', '),
         resistanceStyle: habit.resistanceStyle,
+        cravingNarrative: habit.cravingNarrative || '',
+        motivationOverride: habit.motivationOverride || '',
+        reflectionDepthOverride: habit.reflectionDepthOverride?.toString() || '',
+        hitDefinition: habit.hitDefinition || '',
+        slipDefinition: habit.slipDefinition || '',
       });
     }
   }, [habit]);
@@ -154,8 +163,18 @@ export function AnimatedHabitCard({ habit, isOpen, onClose, onRefresh }: Animate
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...editForm,
+          name: editForm.name,
+          goalType: editForm.goalType,
+          microGoal: editForm.microGoal,
           triggers: editForm.triggers.split(',').map(t => t.trim()).filter(Boolean),
+          resistanceStyle: editForm.resistanceStyle,
+          cravingNarrative: editForm.cravingNarrative,
+          motivationOverride: editForm.motivationOverride,
+          reflectionDepthOverride: editForm.reflectionDepthOverride
+            ? parseInt(editForm.reflectionDepthOverride, 10)
+            : undefined,
+          hitDefinition: editForm.hitDefinition,
+          slipDefinition: editForm.slipDefinition,
         }),
       });
 
@@ -220,61 +239,14 @@ export function AnimatedHabitCard({ habit, isOpen, onClose, onRefresh }: Animate
                     {combo && <span className="px-3 py-1 text-bold text-gray-800 text-3xl">{combo}</span>}
                   </div>
                   <div className="flex gap-2">
-                    <Dialog open={isEditing} onOpenChange={setIsEditing}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="icon" className="bg-blue-50 hover:bg-blue-100">
-                          <Pencil className="h-4 w-4 text-blue-600" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Edit Habit</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
-                              id="name"
-                              value={editForm.name}
-                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid gap-2 bg-white">
-                            <Label htmlFor="goalType">Goal Type</Label>
-                            <Input
-                              id="goalType"
-                              value={editForm.goalType}
-                              onChange={(e) => setEditForm({ ...editForm, goalType: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="microGoal">Micro Goal</Label>
-                            <Input
-                              id="microGoal"
-                              value={editForm.microGoal}
-                              onChange={(e) => setEditForm({ ...editForm, microGoal: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="triggers">Triggers (comma separated)</Label>
-                            <Textarea
-                              id="triggers"
-                              value={editForm.triggers}
-                              onChange={(e) => setEditForm({ ...editForm, triggers: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="resistanceStyle">Resistance Style</Label>
-                            <Input
-                              id="resistanceStyle"
-                              value={editForm.resistanceStyle}
-                              onChange={(e) => setEditForm({ ...editForm, resistanceStyle: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                        <Button onClick={handleEditHabit}>Save Changes</Button>
-                      </DialogContent>
-                    </Dialog>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="bg-blue-50 hover:bg-blue-100"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Pencil className="h-4 w-4 text-blue-600" />
+                    </Button>
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -310,38 +282,162 @@ export function AnimatedHabitCard({ habit, isOpen, onClose, onRefresh }: Animate
 
                 <div className="grid grid-cols-2 gap-6 mb-6">
                   <div className="bg-gray-700 p-4 rounded-lg">
-                    <h3 className="font-medium text-white mb-2">Progress</h3>
-                    <div className="h-48">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" />
-                          <XAxis dataKey="name" stroke="#9ca3af" />
-                          <YAxis stroke="#9ca3af" />
-                          <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none' }} itemStyle={{ color: '#fff' }} />
-                          <Line type="monotone" dataKey="cumulative" stroke="#8b5cf6" strokeWidth={3} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {isEditing ? (
+                      <>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md ">
+                          <Label htmlFor="name" className="text-xs">Name</Label>
+                          <Input
+                            id="name"
+                            className="text-xs"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="goalType" className="text-xs">Goal Type</Label>
+                          <Input
+                            id="goalType"
+                            className="text-xs"
+                            value={editForm.goalType}
+                            onChange={(e) => setEditForm({ ...editForm, goalType: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="microGoal" className="text-xs">Micro Goal</Label>
+                          <Input
+                            id="microGoal"
+                            className="text-xs"
+                            value={editForm.microGoal}
+                            onChange={(e) => setEditForm({ ...editForm, microGoal: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="triggers" className="text-xs">Triggers</Label>
+                          <Textarea
+                            id="triggers"
+                            className="text-xs"
+                            value={editForm.triggers}
+                            onChange={(e) => setEditForm({ ...editForm, triggers: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="font-medium text-white mb-2">Progress</h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" />
+                            <XAxis dataKey="name" stroke="#9ca3af" />
+                            <YAxis stroke="#9ca3af" />
+                            <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none' }} itemStyle={{ color: '#fff' }} />
+                            <Line type="monotone" dataKey="cumulative" stroke="#8b5cf6" strokeWidth={3} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </>
+                    )}
                   </div>
                   <div className="space-y-4">
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <h4 className="text-sm font-medium text-white">Goal Type</h4>
-                      <p className="text-gray-200">{habit.goalType}</p>
-                    </div>
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <h4 className="text-sm font-medium text-white">Micro Goal</h4>
-                      <p className="text-gray-200">{habit.microGoal}</p>
-                    </div>
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <h4 className="text-sm font-medium text-white">Triggers</h4>
-                      <p className="text-gray-200">{habit.triggers.join(', ')}</p>
-                    </div>
-                    <div className="p-4 bg-gray-700 rounded-lg">
-                      <h4 className="text-sm font-medium text-white">Resistance Style</h4>
-                      <p className="text-gray-200">{habit.resistanceStyle}</p>
-                    </div>
+                    {isEditing ? (
+                      <>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="resistanceStyle" className="text-xs">Resistance Style</Label>
+                          <Input
+                            id="resistanceStyle"
+                            className="text-xs"
+                            value={editForm.resistanceStyle}
+                            onChange={(e) => setEditForm({ ...editForm, resistanceStyle: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="cravingNarrative" className="text-xs">Craving Narrative</Label>
+                          <Textarea
+                            id="cravingNarrative"
+                            className="text-xs"
+                            value={editForm.cravingNarrative}
+                            onChange={(e) => setEditForm({ ...editForm, cravingNarrative: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="motivationOverride" className="text-xs">Motivation Override</Label>
+                          <Textarea
+                            id="motivationOverride"
+                            className="text-xs"
+                            value={editForm.motivationOverride}
+                            onChange={(e) => setEditForm({ ...editForm, motivationOverride: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="reflectionDepthOverride" className="text-xs">Reflection Depth</Label>
+                          <Input
+                            id="reflectionDepthOverride"
+                            type="number"
+                            className="text-xs"
+                            value={editForm.reflectionDepthOverride}
+                            onChange={(e) => setEditForm({ ...editForm, reflectionDepthOverride: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="hitDefinition" className="text-xs">Hit Definition</Label>
+                          <Textarea
+                            id="hitDefinition"
+                            className="text-xs"
+                            value={editForm.hitDefinition}
+                            onChange={(e) => setEditForm({ ...editForm, hitDefinition: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-1 p-2 bg-gray-700 rounded-md">
+                          <Label htmlFor="slipDefinition" className="text-xs">Slip Definition</Label>
+                          <Textarea
+                            id="slipDefinition"
+                            className="text-xs"
+                            value={editForm.slipDefinition}
+                            onChange={(e) => setEditForm({ ...editForm, slipDefinition: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h4 className="text-sm font-medium text-white">Goal Type</h4>
+                        <p className="text-gray-200">{habit.goalType}</p>
+                        <h4 className="text-sm font-medium text-white mt-2">Micro Goal</h4>
+                        <p className="text-gray-200">{habit.microGoal}</p>
+                        <h4 className="text-sm font-medium text-white mt-2">Triggers</h4>
+                        <p className="text-gray-200">{habit.triggers.join(', ')}</p>
+                        <h4 className="text-sm font-medium text-white mt-2">Resistance Style</h4>
+                        <p className="text-gray-200">{habit.resistanceStyle}</p>
+                      </>
+                    )}
                   </div>
                 </div>
+                {isEditing && (
+                  <div className="flex justify-end gap-2 p-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // reset form and exit edit mode
+                        setEditForm({
+                          name: habit.name,
+                          goalType: habit.goalType,
+                          microGoal: habit.microGoal,
+                          triggers: habit.triggers.join(', '),
+                          resistanceStyle: habit.resistanceStyle,
+                          cravingNarrative: habit.cravingNarrative || '',
+                          motivationOverride: habit.motivationOverride || '',
+                          reflectionDepthOverride: habit.reflectionDepthOverride?.toString() || '',
+                          hitDefinition: habit.hitDefinition || '',
+                          slipDefinition: habit.slipDefinition || '',
+                        });
+                        setIsEditing(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleEditHabit}>
+                      Save
+                    </Button>
+                  </div>
+                )}
                 <div className="p-4 bg-gray-700 rounded-lg">
                   <h3 className="font-medium text-white mb-2">Recent Activity</h3>
                   <div className="space-y-2 max-h-60 overflow-y-auto">

@@ -20,8 +20,38 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
   const [hitDefinition, setHitDefinition] = useState('');
   const [slipDefinition, setSlipDefinition] = useState('');
 
+  // add errors state to track validation
+  const [errors, setErrors] = useState({
+    name: false,
+    goalType: false,
+    microGoal: false,
+    triggers: false,
+    cravingNarrative: false,
+    resistanceStyle: false,
+    hitDefinition: false,
+    slipDefinition: false,
+  });
+
+  // function to validate all fields
+  const validateForm = () => {
+    const newErrors = {
+      name: name.trim() === '',
+      goalType: goalType === '',
+      microGoal: microGoal.trim() === '',
+      triggers: triggers.length === 0,
+      cravingNarrative: cravingNarrative.trim() === '',
+      resistanceStyle: resistanceStyle.trim() === '',
+      hitDefinition: hitDefinition.trim() === '',
+      slipDefinition: slipDefinition.trim() === '',
+    };
+    setErrors(newErrors);
+    return !Object.values(newErrors).some(Boolean);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // stop submission if validation fails
+    if (!validateForm()) return;
     try {
       const res = await fetch('/api/habits', {
         method: 'POST',
@@ -69,7 +99,7 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
       {/* Add Habit Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-gradient-to-br from-green-200 to-pink-300 p-8 rounded-2xl shadow-xl max-w-4xl  grid grid-cols-1 md:grid-cols-2 gap-6"
+        className="bg-gradient-to-br from-green-200 to-pink-300 p-8 rounded-2xl shadow-xl max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6"
       >
         <div className="flex flex-col">
           <label className="block text-sm font-medium text-gray-700">Habit Title</label>
@@ -77,7 +107,7 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 text-gray-800 shadow focus:border-blue-500 focus:ring-blue-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-800 shadow pl-3 ${errors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
             required
             placeholder="e.g. Daily Meditation"
           />
@@ -88,7 +118,7 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
           <select
             value={goalType}
             onChange={(e) => setGoalType(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 text-gray-800 shadow focus:border-blue-500 focus:ring-blue-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-800 shadow pl-3 ${errors.goalType ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
             required
           >
             <option value="" disabled>Select goal type</option>
@@ -103,14 +133,17 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
             type="text"
             value={microGoal}
             onChange={(e) => setMicroGoal(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 text-gray-800 shadow focus:border-blue-500 focus:ring-blue-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-800 shadow pl-3 ${errors.microGoal ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+            required
             placeholder="e.g. meditate 5 minutes"
           />
         </div>
 
         <div className="flex flex-col">
-          <p className="text-sm font-medium text-gray-700">Triggers</p>
-          <Tag data={triggers} setData={setTriggers} title="Triggers" />
+          <p className="block text-sm font-medium text-gray-700">Triggers</p>
+          <div className={`${errors.triggers ? 'border border-red-500 rounded-md p-2' : ''}`}>
+            <Tag data={triggers} setData={setTriggers} title="Triggers" />
+          </div>
         </div>
 
         <div className="flex flex-col">
@@ -118,8 +151,9 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
           <textarea
             value={cravingNarrative}
             onChange={(e) => setCravingNarrative(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 text-gray-900 shadow focus:border-purple-500 focus:ring-purple-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-900 shadow pl-3 ${errors.cravingNarrative ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-purple-500 focus:ring-purple-500'}`}
             rows={2}
+            required
             placeholder="What story do you tell yourself when craving?"
           />
         </div>
@@ -130,7 +164,8 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
             type="text"
             value={resistanceStyle}
             onChange={(e) => setResistanceStyle(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 text-gray-800 shadow focus:border-green-500 focus:ring-green-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-800 shadow pl-3 ${errors.resistanceStyle ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-green-500 focus:ring-green-500'}`}
+            required
             placeholder="e.g. ignore, distract"
           />
         </div>
@@ -147,6 +182,7 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
             value={reflectionDepthOverride}
             onChange={(e) => setReflectionDepthOverride(parseInt(e.target.value))}
             className="w-full mt-2 accent-gray-500"
+            required
           />
         </div>
 
@@ -156,7 +192,8 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
             type="text"
             value={hitDefinition}
             onChange={(e) => setHitDefinition(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 text-gray-800 shadow focus:border-blue-500 focus:ring-blue-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-800 shadow pl-3 ${errors.hitDefinition ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+            required
             placeholder="What counts as a hit?"
           />
         </div>
@@ -167,7 +204,8 @@ export default function AddHabitForm({ onSubmit, onRefresh }: {
             type="text"
             value={slipDefinition}
             onChange={(e) => setSlipDefinition(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-700 text-gray-800 shadow focus:border-red-500 focus:ring-red-500 pl-3"
+            className={`mt-1 block w-full rounded-md text-gray-800 shadow pl-3 ${errors.slipDefinition ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-700 focus:border-red-500 focus:ring-red-500'}`}
+            required
             placeholder="What counts as a slip?"
           />
         </div>

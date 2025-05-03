@@ -3,14 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import HabitCard from '@/components/HabitCard';
-import Loading from '@/components/Loading';
 import { Habit } from '@/lib/types';
 import AddHabitForm from '@/components/AddHabitForm';
-import { AnimatedQuestionModal } from '@/components/AnimatedQuestionModal';
 import { Button } from '@/components/ui/button';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import Chat from '@/components/Chat';
 
 // Define animation variants
 const containerVariants = {
@@ -46,16 +44,10 @@ const swipeVariants = {
   })
 };
 
-// Type for the question modal context
-type QuestionContext = { habitId: string; eventType: 'HIT' | 'SLIP'; eventId: string; habitName?: string } | null;
-
 export default function Dashboard() {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
-  const [questionContext, setQuestionContext] = useState<QuestionContext>(null);
 
   // Sorted habits by latest event timestamp
   const sortedHabits = useMemo(() => {
@@ -68,7 +60,6 @@ export default function Dashboard() {
   }, [habits]);
 
   const fetchHabits = async () => {
-    setLoading(true);
     try {
       const res = await fetch('/api/habits');
       if (!res.ok) throw new Error('Failed to fetch habits');
@@ -82,8 +73,6 @@ export default function Dashboard() {
     } catch (error) {
       console.error(error);
       toast.error("Failed to load habits.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -102,81 +91,57 @@ export default function Dashboard() {
     setCurrentIndex((idx) => (idx + 1) % sortedHabits.length);
   };
 
-  const handleTriggerQuestion = (habitId: string, eventType: 'HIT' | 'SLIP', eventId: string, habitName: string) => {
-    console.log(`Triggering question for Event ID: ${eventId}, Habit: ${habitName}`);
-    setQuestionContext({ habitId, eventType, eventId, habitName });
-    setIsQuestionModalOpen(true);
-  };
-
-  const handleSaveReflection = async (eventId: string, answer: string) => {
-    console.log("Saving reflection for event:", { eventId, answer });
-    try {
-      const res = await fetch('/api/habits/events/reflect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId, reflectionNote: answer }),
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to save reflection');
-      }
-      // Optional: Refresh habits if needed, though not strictly necessary just for reflection
-      // fetchHabits();
-    } catch (error) {
-      console.error("Error saving reflection:", error);
-      // Re-throw error so the modal can display toast
-      throw error;
-    }
-  };
-
-  if (loading) return <Loading />;
-
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 min-h-screen flex flex-col">
-      {/* Single habit carousel */}
-      <div className="relative w-full max-w-sm">
-        {/* Prev button */}
-        <Button
-          variant="ghost"
-          className="absolute left-0 top-1/2 -translate-y-1/2 hover:bg-transparent w-8 h-8 group"
-          onClick={prev}
-          disabled={sortedHabits.length <= 1}
-        >
-          <ChevronLeft className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
-        </Button>
+    <div className="container mx-20 p-4 md:p-6 lg:p-8 min-h-screen ">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Single habit carousel */}
+        <div className="relative w-full max-w-sm flex justify-center">
+          {/* Prev button */}
+          <Button
+            variant="ghost"
+            className="absolute left-0 top-1/2 -translate-y-1/2 hover:bg-transparent w-8 h-8 group"
+            onClick={prev}
+            disabled={sortedHabits.length <= 1}
+          >
+            <ChevronLeft className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
+          </Button>
 
-        {/* Habit card with motion on change */}
-        <AnimatePresence initial={false} custom={currentIndex} mode="wait">
-          {sortedHabits.length > 0 && (
-            <motion.div
-              key={sortedHabits[currentIndex].id}
-              custom={currentIndex}
-              variants={swipeVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ x: { type: 'spring', stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }}
-            >
-              <HabitCard
-                data={sortedHabits[currentIndex]}
-                onRefresh={fetchHabits}
-                onTriggerQuestion={handleTriggerQuestion}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Habit card with motion on change */}
+          <AnimatePresence initial={false} custom={currentIndex} mode="wait">
+            {sortedHabits.length > 0 && (
+              <motion.div
+                key={sortedHabits[currentIndex].id}
+                custom={currentIndex}
+                variants={swipeVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ x: { type: 'spring', stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }}
+                className="flex justify-center h-105"
+              >
+                <HabitCard
+                  data={sortedHabits[currentIndex]}
+                  onRefresh={fetchHabits}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* Next button */}
-        <Button
-          variant="ghost"
-          className="absolute right-0 top-1/2 -translate-y-1/2 hover:bg-transparent w-8 h-8 group"
-          onClick={next}
-          disabled={sortedHabits.length <= 1}
-        >
-          <ChevronRight className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
-        </Button>
+          {/* Next button */}
+          <Button
+            variant="ghost"
+            className="absolute right-0 top-1/2 -translate-y-1/2 hover:bg-transparent w-8 h-8 group"
+            onClick={next}
+            disabled={sortedHabits.length <= 1}
+          >
+            <ChevronRight className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
+          </Button>
+        </div>
+        {/* Chat panel */}
+        <div className="w-full max-w-md mx-auto">
+          <Chat />
+        </div>
       </div>
-
       {/* Add new habit button */}
       <div className="fixed bottom-6 right-6 z-50">
         <Button
@@ -187,13 +152,6 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Modals */}
-      <AnimatedQuestionModal
-        isOpen={isQuestionModalOpen}
-        onClose={() => setIsQuestionModalOpen(false)}
-        context={questionContext}
-        onSave={handleSaveReflection}
-      />
       {/* Add Habit Animated Modal styled like AnimatedHabitCard */}
       <AnimatePresence>
         {isAddModalOpen && (
@@ -210,7 +168,7 @@ export default function Dashboard() {
             <motion.div
               initial={{ x: '100vw', scale: 1 }}
               animate={{ x: '50%', scale: 1 }}
-              exit={{ y: '100vw', scale: 1 }}
+              exit={{ y: '50vw', scale: 1 }}
               transition={{ type: 'spring', damping: 25, stiffness: 120 }}
               className="fixed top-1/2 left-100 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[900px] bg-gray-800 text-white shadow-lg z-50 rounded-xl overflow-hidden"
             >
@@ -224,4 +182,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

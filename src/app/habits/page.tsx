@@ -14,6 +14,15 @@ export default function Habits() {
   const [addNewHabit, setAddNewHabit] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
 
+  useEffect(() => {
+    if (selectedHabit) {
+      const updated = habits.find(h => h.id === selectedHabit.id);
+      if (updated) {
+        setSelectedHabit(updated);
+      }
+    }
+  }, [habits]);
+
   // Fetch habits from the API
   async function fetchHabits() {
     try {
@@ -39,11 +48,13 @@ export default function Habits() {
   }
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>, habit: Habit) => {
+    // Ignore clicks on elements inside interactive no-open containers
+    if ((e.target as HTMLElement).closest('.no-open')) {
+      return;
+    }
     // Only open the full view if clicking directly on the card
     // and not on any of its interactive children
-    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.card-clickable-area')) {
-      setSelectedHabit(habit);
-    }
+    setSelectedHabit(habit);
   };
 
   return (
