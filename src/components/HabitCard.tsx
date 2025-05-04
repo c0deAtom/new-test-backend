@@ -256,47 +256,56 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   };
 
   // Modify the event recorder to open inline reflection
-  async function recordEvent(type: 'HIT' | 'SLIP') {
+  function recordEvent(type: 'HIT' | 'SLIP') {
+    // Prevent triggering multiple reflection questions
+    if (reflectEvent) return;
     console.log("Recording event:", type, "for habit:", data.id);
-    // disable buttons temporarily
-    setIsFrozen(true);
-    setTimeout(() => setIsFrozen(false), 8000);
-    try {
-      const response = await fetch(`/api/habits/${data.id}/events`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
-      });
-      console.log("API Response:", response);
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("Failed to record event. Status:", response.status, "Body:", errorBody);
-        throw new Error(`Failed to record event: ${response.statusText}`);
-      }
 
-      const newEvent = await response.json(); // Assuming API returns the created event
-
-      // Trigger refresh after successful recording
-      onRefresh();
-
-      // Trigger question prompt if handler exists
-      if (onTriggerQuestion) {
-        if (newEvent && newEvent.id) {
-          console.log(`Triggering question prompt for event ID: ${newEvent.id}...`);
-          onTriggerQuestion(data.id, type, newEvent.id, data.name); // Pass eventId and name
-        } else {
-          console.warn("Could not get event ID from response, cannot trigger question.");
-        }
-      }
-
-      // open inline reflection input
-      setReflectEvent({ eventId: newEvent.id, type });
-
-    } catch (error) {
-      console.error('Error recording event:', error);
-      // TODO: Show user feedback about the error
+    // Optimistically update the hit/slip count
+    if (type === 'HIT') {
+      setHitCount(prev => prev + 1);
+    } else {
+      setSlipCount(prev => prev + 1);
     }
-  };
+
+    // disable buttons while request is in-flight
+    setIsFrozen(true);
+    fetch(`/api/habits/${data.id}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type }),
+    })
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(errBody => {
+            console.error("Failed to record event. Status:", response.status, "Body:", errBody);
+            throw new Error(`Failed to record event: ${response.statusText}`);
+          });
+        }
+        return response.json();
+      })
+      .then(newEvent => {
+        // refresh data and trigger follow-up
+        onRefresh();
+        if (onTriggerQuestion && newEvent?.id) {
+          onTriggerQuestion(data.id, type, newEvent.id, data.name);
+        }
+        setReflectEvent({ eventId: newEvent.id, type });
+      })
+      .catch(error => {
+        console.error('Error recording event:', error);
+        // Revert the optimistic update in case of error
+        if (type === 'HIT') {
+          setHitCount(prev => prev - 1);
+        } else {
+          setSlipCount(prev => prev - 1);
+        }
+      })
+      .finally(() => {
+        // re-enable buttons
+        setIsFrozen(false);
+      });
+  }
 
   // Emit question particles on panel open
   const emitQuestionParticles = () => {
@@ -334,7 +343,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
       ref={divRef}
       style={ dynamicBoxShadow ? { boxShadow: dynamicBoxShadow } : undefined }
       className={clsx(
-        "w-full max-w-sm transition-all duration-300 ",
+        "w-80 transition-all duration-300",
         {
           "ring-2 ring-green-500": isHitDominant && combo && hitCount > slipCount,
           "ring-2 ring-red-500": !isHitDominant && combo && slipCount > hitCount,
@@ -424,7 +433,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
             size="lg"
             className="flex-1 mr-2 border-green-500 text-green-700 hover:bg-green-100 hover:text-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={(e) => { e.stopPropagation(); recordEvent('HIT'); }}
-            disabled={isFrozen}
+            disabled={isFrozen || !!reflectEvent}
           >
            
             <Check className="mr-2 h-5 w-5" /> Hit ({hitCount})
@@ -434,7 +443,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     <div className="flex items-center justify-center">
       <div
         className={`animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 ${
-          hitCount > slipCount ? 'border-green-500' : 'border-red-500'
+          reflectEvent?.type === 'HIT' ? 'border-green-500' : 'border-red-500'
         }`}
       ></div>
     </div>
@@ -447,7 +456,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
             size="lg"
             className="flex-1 ml-2 border-red-500 text-red-700 hover:bg-red-100 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={(e) => { e.stopPropagation(); recordEvent('SLIP'); }}
-            disabled={isFrozen}
+            disabled={isFrozen || !!reflectEvent}
           >
              <X className="mr-2 h-5 w-5" /> Slip ({slipCount})
           </Button>
