@@ -3,8 +3,11 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request, { params }: { params: { habitId: string } }) {
-  const habitId = params.habitId;
+export async function POST(
+  request: Request,
+  context: { params: { habitId: string } }
+) {
+  const { habitId } = context.params;
   const body = await request.json();
 
   try {
