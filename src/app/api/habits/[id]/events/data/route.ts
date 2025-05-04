@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(req: NextRequest, { params }: { params: { habitId: string } }) {
+export async function POST(request: Request, { params }: { params: { habitId: string } }) {
   const habitId = params.habitId;
-  const body = await req.json();
+  const body = await request.json();
 
   try {
     const newEvent = await prisma.habitEvent.create({
