@@ -15,7 +15,7 @@ export async function POST(
       data: {
         habitId: habitId,
         userId: body.userId,
-        type: body.type, // 'HIT' or 'SLIP'
+        type: body.type, // 'HIT' or 'SLIsP'
         timestamp: new Date(),
         mood: body.mood,
         intensity: body.intensity,
