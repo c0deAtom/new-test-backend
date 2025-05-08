@@ -3,19 +3,16 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  request: Request,
-  context: { params: { habitId: string } }
-) {
-  const { habitId } = context.params;
-  const body = await request.json();
+export async function POST(req: NextRequest, { params }: { params: { habitId: string } }) {
+  const habitId = params.habitId;
+  const body = await req.json();
 
   try {
     const newEvent = await prisma.habitEvent.create({
       data: {
         habitId: habitId,
         userId: body.userId,
-        type: body.type, // 'HIT' or 'SLIsP'
+        type: body.type, // 'HIT' or 'SLIP'
         timestamp: new Date(),
         mood: body.mood,
         intensity: body.intensity,

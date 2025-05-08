@@ -104,20 +104,23 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   // Inline reflection state
   const [reflectEvent, setReflectEvent] = useState<{ eventId: string; type: 'HIT'|'SLIP' } | null>(null);
   const [reflectionAnswer, setReflectionAnswer] = useState('');
-  const [reflectParticles, setReflectParticles] = useState<{ id: string; char: string; x: number }[]>([]);
-  const [reflectRemoveTriggered, setReflectRemoveTriggered] = useState(false);
+  const [reflectParticles, setReflectParticles] = useState<{ id: string; char: string }[]>([]);
   const [hideReflectInput, setHideReflectInput] = useState(false);
+  const [questionParticles, setQuestionParticles] = useState<{ id: string; char: string }[]>([]);
   const [showReflectQuestionText, setShowReflectQuestionText] = useState(false);
   // Particles for the inline question eruption
-  const [questionParticles, setQuestionParticles] = useState<{ id: string; char: string }[]>([]);
+  const [questionRemoveTriggered, setQuestionRemoveTriggered] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
+
+  // Local events state for immediate UI updates
+  const [localEvents, setLocalEvents] = useState<HabitEvent[]>(data.events || []);
+
   // Determine inline reflection question based on event type
   const reflectQuestion = reflectEvent
     ? reflectEvent.type === 'HIT'
       ? 'What   went   well   that   led   to        this   success?'
       : 'What  challenges  did  you  face?   Any   insights?'
     : '';
-  const [questionRemoveTriggered, setQuestionRemoveTriggered] = useState(false);
-  const [isFrozen, setIsFrozen] = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelectedEvents(prev =>
@@ -127,6 +130,10 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
 
   const handleDeleteSelectedEvents = async () => {
     if (selectedEvents.length === 0) return;
+    // Immediately remove selected events from UI
+    setLocalEvents(prev => prev.filter(ev => !selectedEvents.includes(ev.id)));
+    // Clear selection
+    setSelectedEvents([]);
     try {
       const res = await fetch('/api/habits/events/delete-multiple', {
         method: 'POST',
@@ -135,7 +142,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
       });
       if (res.ok) {
         onRefresh();
-        setSelectedEvents([]); // Clear selection
       } else {
         console.error("Failed to delete events");
       }
@@ -217,16 +223,16 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   // Spawn a particle for each new character in inline reflection
   const createReflectParticle = (char: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-    const x = (Math.random() - 0.5) * 200;
-    // add particle; no auto-removal so it stays after settling
-    setReflectParticles(prev => [...prev, { id, char, x }]);
+    setReflectParticles(prev => [...prev, { id, char }]);
   };
+
   const handleReflectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     const added = newValue.slice(reflectionAnswer.length);
     added.split('').forEach(c => createReflectParticle(c));
     setReflectionAnswer(newValue);
   };
+
   const handleReflectSubmit = async () => {
     if (!reflectEvent || !reflectionAnswer.trim()) return;
     try {
@@ -235,21 +241,15 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         body: JSON.stringify({ eventId: reflectEvent.eventId, reflectionNote: reflectionAnswer })
       });
       if (!res.ok) throw new Error('Failed to save reflection');
-      // hide the input field, then drop both question and reflection letters
+      // hide the input field and clear particles
       setHideReflectInput(true);
-      setTimeout(() => {
-        setReflectRemoveTriggered(true);
-        setQuestionRemoveTriggered(true);
-      }, 100);
       setTimeout(() => {
         setReflectParticles([]);
         setQuestionParticles([]);
-        setReflectRemoveTriggered(false);
-        setQuestionRemoveTriggered(false);
         setHideReflectInput(false);
         setReflectEvent(null);
         onRefresh();
-      }, 1200);
+      }, 300);
     } catch (error) {
       console.error('Reflection error:', error);
     }
@@ -259,15 +259,24 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   function recordEvent(type: 'HIT' | 'SLIP') {
     // Prevent triggering multiple reflection questions
     if (reflectEvent) return;
-    console.log("Recording event:", type, "for habit:", data.id);
-
-    // Optimistically update the hit/slip count
+    // Optimistic UI: add a temporary event
+    const tempId = 'temp-' + Date.now();
+    const tempEvent: HabitEvent = {
+      id: tempId,
+      habitId: data.id,
+      userId: data.userId,
+      type,
+      timestamp: new Date().toISOString(),
+      emotionTags: [],
+      isReversal: false
+    };
+    setLocalEvents(prev => [tempEvent, ...prev]);
+    // Optimistically update hit/slip count
     if (type === 'HIT') {
       setHitCount(prev => prev + 1);
     } else {
       setSlipCount(prev => prev + 1);
     }
-
     // disable buttons while request is in-flight
     setIsFrozen(true);
     fetch(`/api/habits/${data.id}/events`, {
@@ -285,11 +294,11 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         return response.json();
       })
       .then(newEvent => {
-        // refresh data and trigger follow-up
+        // Replace temporary event with persisted event
+        setLocalEvents(prev => [newEvent, ...prev.filter(ev => ev.id !== tempId)]);
+        // refresh datax
         onRefresh();
-        if (onTriggerQuestion && newEvent?.id) {
-          onTriggerQuestion(data.id, type, newEvent.id, data.name);
-        }
+        // Directly set reflectEvent without triggering question
         setReflectEvent({ eventId: newEvent.id, type });
       })
       .catch(error => {
@@ -300,6 +309,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         } else {
           setSlipCount(prev => prev - 1);
         }
+        // Remove temporary event on error
+        setLocalEvents(prev => prev.filter(ev => ev.id !== tempId));
       })
       .finally(() => {
         // re-enable buttons
@@ -310,10 +321,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   // Emit question particles on panel open
   const emitQuestionParticles = () => {
     setQuestionParticles([]);
-    reflectQuestion.split('').forEach((char, i) => {
-      setTimeout(() => {
-        setQuestionParticles(prev => [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`, char }]);
-      }, i * 100);
+    reflectQuestion.split('').forEach((char: string) => {
+      setQuestionParticles(prev => [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`, char }]);
     });
   };
 
@@ -326,17 +335,21 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     }
   }, [reflectEvent, reflectQuestion]);
 
-  // Show static question after volcano animation completes
+  // Show static question after animation completes
   useEffect(() => {
     if (reflectEvent) {
       setShowReflectQuestionText(false);
-      const delay = reflectQuestion.length * 100 + 800;
-      const timer = setTimeout(() => setShowReflectQuestionText(true), delay);
+      const timer = setTimeout(() => setShowReflectQuestionText(true), 300);
       return () => clearTimeout(timer);
     } else {
       setShowReflectQuestionText(false);
     }
   }, [reflectEvent, reflectQuestion]);
+
+  // Sync local events when data.events prop changes
+  useEffect(() => {
+    setLocalEvents(data.events || []);
+  }, [data.events]);
 
   return (
     <Card
@@ -472,53 +485,24 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Combined particle vault */}
-            <div className="relative w-60 h-12 overflow-visible ">
-              {/* Reflect input particles: launch from center, arc, and settle without disappearing */}
-              {reflectParticles.map((p, idx) => (
-                <motion.span
-                  key={p.id}
-                  initial={{ x: 3, y: 0, opacity: 1 }}
-                  animate={reflectRemoveTriggered
-                    ? { x: p.x, y: '100vh', opacity: 0 }
-                    : { x: p.x, y: [-50, -120, 71], opacity: 1 }
-                  }
-                  transition={{
-                    duration: reflectRemoveTriggered ? 1.5 : 1.2, // Increased duration for slower fall
-                    ease: reflectRemoveTriggered ? 'easeIn' : ['easeOut', 'easeIn'],
-                    times: reflectRemoveTriggered ? [0, 1] : [0, 0.3, 1],
-                    delay: idx * 0.02,
-                  }}
-                  className="absolute text-lg font-bold text-white transform -translate-x-1/2"
-                  style={{ left: '50%', bottom: '8px' }}
-                >
-                  <div className="text-green-500">{p.char}</div>
-                </motion.span>
-              ))}
-              {/* Question particles eruption */}
+            <div className="relative w-60 h-12 overflow-visible">
+              {/* Reflect input particles */}
+             
+              {/* Question text */}
               <div className="flex flex-wrap justify-center relative z-10">
-                {questionParticles.map((p, idx) => (
+                {questionParticles.map((p) => (
                   <motion.span
                     key={p.id}
-                    initial={{ y: 30, opacity: 0 }}
-                    animate={ reflectRemoveTriggered
-                      ? { y: '140vh' }
-                      : { y: [0, -80, 0], opacity: [0, 1, 1] }
-                    }
-                    transition={{
-                      times: reflectRemoveTriggered ? [0, 1] : [0, 0.2, 1],
-                      duration: reflectRemoveTriggered ? 2 : 0.2, // Further reduced duration for faster appearance
-                      ease: 'easeInOut',
-                      delay: idx * 0.001, // Further reduced delay for even faster sequential appearance
-                    }}
-                    className="inline-block mx-[1px] text-sm font-bold text-yellow-900" // Reduced margin for closer spacing
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="inline-block mx-[1px] text-sm font-bold text-yellow-900"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {p.char}
                   </motion.span>
                 ))}
               </div>
-              {/* Volcano base */}
-             
             </div>
             {!hideReflectInput && (
               <div className="flex items-center justify-center gap-2">
@@ -548,15 +532,13 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
                     variant="outline"
                     className="px-1 py-1 text-xs font-medium text-blue-600 border-blue-600 hover:bg-blue-50 hover:text-blue-700"
                     onClick={() => {
-                      setReflectRemoveTriggered(true);
                       setTimeout(() => {
                         setReflectParticles([]);
                         setQuestionParticles([]);
-                        setReflectRemoveTriggered(false);
                         setHideReflectInput(false);
                         setReflectEvent(null);
                         onRefresh();
-                      }, 1200);
+                      }, 300);
                     }}
                   >
                     Skip
@@ -569,9 +551,16 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         </div>
       </CardContent>
 
-      <CardContent className="border-t pt-2 px-3" onClick={(e) => e.stopPropagation()}>
+      <CardContent className="border-t pt-2 px-3 relative" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
-          <span className="h-6 text-[10px] font-medium text-muted-foreground">Recent Activity</span>
+          <span className="h-6 text-[10px] font-medium text-muted-foreground"> {isFrozen ? (
+            <div className="absolute inset-0 mr-auto">
+              <div className="animate-spin rounded-full mx-10 my-2 h-3 w-3 border-t-2 border-b-2 border-gray-500"></div>
+            </div>
+          ) : (
+            'Recent Activity'
+          )}
+        </span>
           {selectedEvents.length > 0 && (
             <div ref={confirmRef} onClick={(e) => e.stopPropagation()} className="h-6 flex items-center space-x-1">
               {confirmDeleteEvents ? (
@@ -594,50 +583,55 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
           )}
         </div>
         
-        <ScrollArea className="h-28">
-          <div className="space-y-0.5">
-            {data.events
-              ?.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-              .slice(0, 3)
-              .map((event) => (
-              <div
-                key={event.id}
-                className={cn(
-                  "flex items-center gap-1.5 py-1 text-[10px] rounded-sm hover:bg-muted/50 px-1 gap-6 ",
-                  selectedEvents.includes(event.id) && "bg-muted"
+        <div className="relative">
+         
+            <ScrollArea className="h-28">
+              <div className="space-y-0.5">
+                {localEvents
+                  .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                  .slice(0, 3)
+                  .map((event) => (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      "flex items-center gap-1.5 py-1 text-[10px] rounded-sm hover:bg-muted/50 px-1 gap-6 ",
+                      selectedEvents.includes(event.id) && "bg-muted"
+                    )}
+                  >
+                    <Checkbox
+                      className="h-3 w-3"
+                      checked={selectedEvents.includes(event.id)}
+                      onCheckedChange={() => {
+                        setSelectedEvents(prev =>
+                          prev.includes(event.id)
+                            ? prev.filter(id => id !== event.id)
+                            : [...prev, event.id]
+                        )
+                      }}
+                    />
+                    <span className={cn(
+                      "h-5 w-20 inline-flex items-center rounded-sm px-1 py-0.5 font-medium min-w-[32px] justify-center",
+                      event.type === 'HIT' 
+                        ? "bg-green-100 text-green-700" 
+                        : "bg-red-100 text-red-700"
+                    )}>
+                      {event.type}
+                    </span>
+                    <span className="text-muted-foreground text-lg min-w-[85px]">
+                      {format(new Date(event.timestamp), 'MMM d, h:mm a')}
+                    </span>
+                  </div>
+                ))}
+                {localEvents.length === 0 && (
+                  <div className="py-2 text-[10px] text-muted-foreground text-center">
+                    No events recorded
+                  </div>
                 )}
-              >
-                <Checkbox
-                  className="h-3 w-3"
-                  checked={selectedEvents.includes(event.id)}
-                  onCheckedChange={() => {
-                    setSelectedEvents(prev =>
-                      prev.includes(event.id)
-                        ? prev.filter(id => id !== event.id)
-                        : [...prev, event.id]
-                    )
-                  }}
-                />
-                <span className={cn(
-                  "h-5 w-20 inline-flex items-center rounded-sm px-1 py-0.5 font-medium min-w-[32px] justify-center",
-                  event.type === 'HIT' 
-                    ? "bg-green-100 text-green-700" 
-                    : "bg-red-100 text-red-700"
-                )}>
-                  {event.type}
-                </span>
-                <span className="text-muted-foreground text-lg min-w-[85px]">
-                  {format(new Date(event.timestamp), 'MMM d, h:mm a')}
-                </span>
               </div>
-            ))}
-            {(!data.events || data.events.length === 0) && (
-              <div className="py-2 text-[10px] text-muted-foreground text-center">
-                No events recorded
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+            </ScrollArea>
+         
+         
+        </div>
       </CardContent>
 
       {/* Edit Drawer */}

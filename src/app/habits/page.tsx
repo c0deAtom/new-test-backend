@@ -59,7 +59,7 @@ export default function Habits() {
 
   return (
     <div className="py-5">
-      <div className="px-50 py-10 flex flex-wrap gap-25 min-h-screen">
+      <div className="px-50 py-10 flex flex-wrap gap-21 min-h-screen">
         {habits.map((habit) => (
           <div 
             key={habit.id}
