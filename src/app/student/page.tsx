@@ -4,8 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Bot, User, RefreshCw, Plus } from "lucide-react";
+import { Loader2, Bot, User, RefreshCw, Plus, GripVertical } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import { StickyNoteCard } from '@/components/StickyNoteCard';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,7 +18,7 @@ export default function StudentPage() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const [notes, setNotes] = useState<string[]>([]);
+  const [notes, setNotes] = useState<{ id: string, content: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,6 +26,19 @@ export default function StudentPage() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        const res = await fetch('/api/notes');
+        const data = await res.json();
+        setNotes(data);
+      } catch {
+        setNotes([]);
+      }
+    };
+    fetchNotes();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +50,7 @@ export default function StudentPage() {
 
     // Check for the command to add a note
     if (prompt.toLowerCase().includes('add note')) {
-      setNotes(prev => [...prev, '']);
+      setNotes(prev => [...prev, { id: '', content: '' }]);
       setLoading(false);
       return;
     }
@@ -65,34 +80,69 @@ export default function StudentPage() {
     setPrompt('');
   };
 
-  const handleAddCard = () => {
-    setNotes(prev => [...prev, '']);
+  const handleAddCard = async () => {
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: '', tags: [] }),
+      });
+      const newNote = await res.json();
+      setNotes(prev => [newNote, ...prev]);
+    } catch {
+      toast.error('Error creating note');
+    }
+  };
+
+  const handleSaveNote = async (note: { id: string, content: string }, index: number) => {
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: note.id, content: note.content, tags: [] }),
+      });
+      if (!res.ok) throw new Error('Failed to save note');
+      toast.success('Note saved!');
+    } catch {
+      toast.error('Error saving note');
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-between bg-muted/50 p-4">
+    <div className="min-h-screen flex items-start justify-between ">
       <div className="flex flex-col w-full max-w-md">
-        <Button onClick={handleAddCard} className="mb-4">
-          <Plus className="mr-2 h-5 w-5" /> Add Card
+        <Button onClick={handleAddCard} className=" w-10">
+          <Plus className=" h-5 w-5" /> 
         </Button>
+        <div className='flex grid grid-cols-3 w-250 gap-2 mt-4'> 
         {notes.map((note, index) => (
-          <Card key={index} className="mb-4">
-            <CardContent>
-              <Textarea
-                placeholder="New note..."
-                value={note}
-                onChange={(e) => {
-                  const newNotes = [...notes];
-                  newNotes[index] = e.target.value;
-                  setNotes(newNotes);
-                }}
-                className="min-h-[80px]"
-              />
-            </CardContent>
-          </Card>
+          <StickyNoteCard
+            key={note.id}
+            note={note}
+            index={index}
+            onChange={(value) => {
+              const newNotes = [...notes];
+              newNotes[index] = { ...note, content: value };
+              setNotes(newNotes);
+            }}
+            onBlur={async () => {
+              try {
+                const res = await fetch('/api/notes', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: note.id, content: note.content, tags: [] }),
+                });
+                if (!res.ok) throw new Error('Failed to save note');
+                toast.success('Note saved!');
+              } catch {
+                toast.error('Error saving note');
+              }
+            }}
+          />
         ))}
+        </div>
       </div>
-      <Card className="w-full max-w-sm shadow-lg border border-muted bg-white">
+      <Card className="w-100 h-full shadow-lg border border-muted bg-white">
         <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
           <CardTitle className="text-xl font-semibold tracking-tight">Student AI Panel</CardTitle>
           <Button variant="ghost" size="icon" onClick={handleNewChat} title="New Chat">
@@ -138,7 +188,7 @@ export default function StudentPage() {
               placeholder="Type your question..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] text-black"
               disabled={loading}
             />
             <Button type="submit" className="w-full" disabled={loading || !prompt.trim()}>

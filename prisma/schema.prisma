@@ -74,3 +74,17 @@ model UserReflection {
   timestamp DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 }
+
+model Note {
+  id        String   @id @default(uuid())
+  content   String
+  tags      Tag[]
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id      String @id @default(uuid())
+  name    String
+  noteId  String
+  note    Note   @relation(fields: [noteId], references: [id])
+}
