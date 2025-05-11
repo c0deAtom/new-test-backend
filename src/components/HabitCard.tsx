@@ -46,6 +46,41 @@ import { cn } from "@/lib/utils"
 import React from "react"
 import { motion } from 'framer-motion';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from "@/components/ui/skeleton";
+
+export function HabitCardSkeleton() {
+  return (
+    <Card className="w-80 h-92 transition-all duration-300 bg-gradient-to-r from-gray-400 via-gray-400 to-gray-500">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Skeleton className="h-4 w-32 bg-gray-300" />
+        <div className="flex items-center space-x-1">
+          <Skeleton className="h-6 w-6 rounded-full bg-gray-300" />
+        </div>
+      </CardHeader>
+      <CardContent className="pb-2">
+        <Skeleton className="h-3 w-48 mb-2 bg-gray-300" />
+        <div className="flex justify-around items-center pt-2">
+          <Skeleton className="h-10 w-32 bg-gray-300 rounded-lg" />
+          <Skeleton className="h-10 w-32 bg-gray-300 rounded-lg" />
+        </div>
+      </CardContent>
+      <CardContent className="border-t border-gray-300 pt-2 px-3">
+        <div className="flex items-center justify-between mb-1">
+          <Skeleton className="h-3 w-24 bg-gray-300" />
+        </div>
+        <div className="space-y-1">
+          {[1, 2, 3].map((_, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <Skeleton className="h-3 w-3 bg-gray-300" />
+              <Skeleton className="h-4 w-16 bg-gray-300" />
+              <Skeleton className="h-4 w-24 bg-gray-300" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function calculateCombo(events: HabitEvent[]) {
   if (!events || events.length === 0) return null;

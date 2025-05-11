@@ -1,18 +1,20 @@
 'use client';
 
-import HabitCard from "@/components/HabitCard";
-import { useState, useEffect } from "react";
-import AddHabitForm from "@/components/AddHabitForm";
-import { ButtonIcon, CrossCloseButton } from "@/components/Button";
-import Loading from "@/components/Loading";
+import { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import HabitCard, { HabitCardSkeleton } from "@/components/HabitCard";
 import { AnimatedHabitCard } from "@/components/AnimatedHabitCard";
 import { Habit } from "@/lib/types";
+import AddHabitForm from "@/components/AddHabitForm";
+import { ButtonIcon } from "@/components/Button";
 
-export default function Habits() {
+export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addNewHabit, setAddNewHabit] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [addNewHabit, setAddNewHabit] = useState(false);
 
   useEffect(() => {
     if (selectedHabit) {
@@ -23,8 +25,7 @@ export default function Habits() {
     }
   }, [habits]);
 
-  // Fetch habits from the API
-  async function fetchHabits() {
+  const fetchHabits = async () => {
     try {
       const res = await fetch('/api/habits');
       if (!res.ok) {
@@ -37,15 +38,11 @@ export default function Habits() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     fetchHabits();
   }, []);
-
-  if (loading) {
-    return <Loading />;
-  }
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>, habit: Habit) => {
     // Ignore clicks on elements inside interactive no-open containers
@@ -53,35 +50,55 @@ export default function Habits() {
       return;
     }
     // Only open the full view if clicking directly on the card
-    // and not on any of its interactive children
     setSelectedHabit(habit);
   };
 
   return (
-    <div className="py-5">
-      <div className="px-50 py-10 flex flex-wrap gap-21 min-h-screen">
-        {habits.map((habit) => (
-          <div 
-            key={habit.id}
-            onClick={(e) => handleCardClick(e, habit)}
-            className="cursor-pointer card-wrapper"
-          >
-            <div className="card-clickable-area">
-              <HabitCard 
-                data={habit} 
-                onRefresh={fetchHabits} 
-              />
+    <div className="">
+       {/* Plus button to add a new habit */}
+       <div className="flex ">
+       <Button onClick={() => setAddNewHabit(true)} className="w-10 bg-gray-400">
+          <Plus className="h-5 w-5" /> 
+        </Button>
+       
+        </div>
+      <div className="px-10 py-10 flex flex-wrap gap-21 min-h-screen">
+        {loading ? (
+          // Show 2 skeleton cards while loading
+          Array.from({ length: 2 }).map((_, index) => (
+            <HabitCardSkeleton key={index} />
+          ))
+        ) : (
+          habits.map((habit) => (
+            <div 
+              key={habit.id}
+              onClick={(e) => handleCardClick(e, habit)}
+              className="cursor-pointer card-wrapper"
+            >
+              <div className="card-clickable-area">
+                <HabitCard 
+                  data={habit} 
+                  onRefresh={fetchHabits} 
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
 
         {/* Add new habit card */}
         {addNewHabit && (
           <div className="rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md shadow-6xl shadow-gray-900 hover:shadow-2xl hover:-translate-y-1 transform transition-all duration-300 h-80">
-            <div className="bg-gradient-to-r from-gray-400 via-gray-400 to-gray-500 text-white flex flex-col gap-2 rounded-xl border py-4 px-6 w-72 h-80">
+            <div className="bg-gradient-to-r from-gray-400 via-gray-400 to-gray-500 text-white flex flex-col gap-2 rounded-xl border py-4 px-6 w-80 h-92">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-800 mx-4">Add a New Habit</h2>
-                <CrossCloseButton onClick={() => setAddNewHabit(false)} /> 
+                <button 
+                  onClick={() => setAddNewHabit(false)}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
               <AddHabitForm 
                 onSubmit={() => setAddNewHabit(false)} 
@@ -90,11 +107,6 @@ export default function Habits() {
             </div>
           </div>
         )}
-
-        {/* Plus button to add a new habit */}
-        <div className="flex mt-10">
-          <ButtonIcon onClick={() => setAddNewHabit(true)} />
-        </div>
       </div>
       <div className="w-full">
         <AnimatedHabitCard

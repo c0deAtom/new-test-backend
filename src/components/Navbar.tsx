@@ -38,8 +38,8 @@ const navigationItems = [
     href: '/habits',
   },
   {
-    name: 'Analytics',
-    href: '/analytics',
+    name: 'Student',
+    href: '/student',
   },
 ];
 
@@ -52,7 +52,7 @@ export function Navbar() {
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="font-bold sm:inline-block">HabitForge</span>
+            <span className="font-bold sm:inline-block ml-7">Study</span>
           </Link>
           <NavigationMenu>
             <NavigationMenuList>

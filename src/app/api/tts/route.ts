@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   const { text } = await request.json();
   const apiKey = process.env.ELEVENLABS_API_KEY || 'sk_dbb226e209169e6075daec56a360d509ad776bb70d1e9d8f';
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'nPczCjzI2devNBz1zQrb';
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'H6QPv2pQZDcGqLwDTIJQ';
   if (!apiKey || !voiceId) {
     return NextResponse.json({ error: 'Missing ElevenLabs configuration' }, { status: 500 });
   }
