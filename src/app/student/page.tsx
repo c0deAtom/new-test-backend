@@ -198,6 +198,19 @@ export default function StudentPage() {
     setCurrentSequence(1);
   };
 
+  const updateNoteTags = async (noteId: string) => {
+    try {
+      const res = await fetch(`/api/notes/${noteId}`);
+      if (!res.ok) throw new Error('Failed to fetch note');
+      const updatedNote = await res.json();
+      setNotes(prev => prev.map(note => 
+        note.id === noteId ? { ...note, tags: updatedNote.tags } : note
+      ));
+    } catch (error) {
+      console.error('Error updating note tags:', error);
+    }
+  };
+
   return (
     <div className="w-full">
       <div className="flex flex-col">
@@ -305,9 +318,7 @@ export default function StudentPage() {
                 onTagFinished={handleTagFinished}
                 isPaused={!isPlaying}
                 setCurrentAudio={setCurrentAudio}
-                onRefresh={() => {
-                  setRefetchTrigger(prev => prev + 1);
-                }}
+                onRefresh={() => updateNoteTags(note.id)}
               />
             ))
           )}

@@ -3,6 +3,35 @@ import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    if (!id) {
+      return NextResponse.json({ error: 'Note id is required' }, { status: 400 });
+    }
+
+    const note = await prisma.note.findUnique({
+      where: { id },
+      include: { tags: true },
+    });
+
+    if (!note) {
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(note);
+  } catch (error) {
+    console.error('Error fetching note:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch note' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }

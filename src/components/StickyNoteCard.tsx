@@ -86,10 +86,8 @@ export function StickyNoteCard({
   onRefresh
 }: StickyNoteCardProps) {
   const [tagInput, setTagInput] = useState('');
-  const [savedTag, setSavedTag] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [noteTags, setNoteTags] = useState<string[]>(tags);
   const [editing, setEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(note.content);
   const [contentSaving, setContentSaving] = useState(false);
@@ -101,11 +99,6 @@ export function StickyNoteCard({
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
-
-  // Update noteTags when tags prop changes
-  useEffect(() => {
-    setNoteTags(tags);
-  }, [tags]);
 
   // Cleanup audio URL when component unmounts
   useEffect(() => {
@@ -119,12 +112,12 @@ export function StickyNoteCard({
   // Handle playing new tag
   useEffect(() => {
     if (isPlayingAll && currentPlayingTag?.noteId === note.id) {
-      const tagToPlay = noteTags[currentPlayingTag.tagIndex];
+      const tagToPlay = tags[currentPlayingTag.tagIndex];
       if (tagToPlay && currentPlayingTag.tagIndex !== currentPlayingIndex) {
         playTag(tagToPlay, currentPlayingTag.tagIndex);
       }
     }
-  }, [isPlayingAll, currentPlayingTag]);
+  }, [isPlayingAll, currentPlayingTag, tags]);
 
   const playTag = async (tag: string, tagIndex: number) => {
     try {
@@ -190,10 +183,8 @@ export function StickyNoteCard({
     }
   };
 
-  // When typing, update tagInput
   const handleTagInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTagInput(e.target.value);
-    setSavedTag(null);
     setFeedback(null);
   };
 
@@ -210,36 +201,29 @@ export function StickyNoteCard({
     onTagSelection?.(index, !selectedTags.includes(index));
   };
 
-  // On save, update this note's tags
   const handleSave = async () => {
     if (!tagInput.trim() || !note.id) return;
     setLoading(true);
     setFeedback(null);
     try {
-      // Fetch current tags for this note
-      const res = await fetch(`/api/notes`);
-      const notes = await res.json();
-      const thisNote = notes.find((n: any) => n.id === note.id);
-      let currentTags: string[] = [];
-      if (thisNote && Array.isArray(thisNote.tags)) {
-        currentTags = thisNote.tags.map((tag: any) => tag.name || tag);
-      }
-      // Add new tag if not duplicate
       const newTag = tagInput.trim();
-      const updatedTags = currentTags.includes(newTag)
-        ? currentTags
-        : [...currentTags, newTag];
-      // Update note with new tags
-      const putRes = await fetch('/api/notes', {
+      const updatedTags = tags.includes(newTag) ? tags : [...tags, newTag];
+      
+      const res = await fetch('/api/notes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: note.id, content: note.content, tags: updatedTags }),
+        body: JSON.stringify({ 
+          id: note.id, 
+          content: note.content, 
+          tags: updatedTags 
+        }),
       });
-      if (!putRes.ok) throw new Error('Failed to save tag');
-      setSavedTag(newTag);
+      
+      if (!res.ok) throw new Error('Failed to save tag');
+      
       setTagInput('');
       setFeedback('Saved!');
-      onRefresh?.(); // Refresh after adding new tag
+      onRefresh?.();
     } catch (err) {
       setFeedback('Error saving');
     } finally {
@@ -261,14 +245,14 @@ export function StickyNoteCard({
         body: JSON.stringify({ 
           id: note.id, 
           content: editedContent,
-          tags: noteTags 
+          tags: tags 
         }),
       });
       if (!res.ok) throw new Error('Failed to update note');
       onChange(editedContent);
       setEditing(false);
       setFeedback('Saved!');
-      onRefresh?.(); // Refresh after updating content
+      onRefresh?.();
       setTimeout(() => setFeedback(null), 2000);
     } catch (err) {
       setFeedback('Error saving');
@@ -289,7 +273,7 @@ export function StickyNoteCard({
     
     setLoading(true);
     try {
-      const updatedTags = [...noteTags];
+      const updatedTags = [...tags];
       updatedTags[editingTagIndex] = editingTagValue.trim();
       
       const res = await fetch('/api/notes', {
@@ -304,10 +288,10 @@ export function StickyNoteCard({
       
       if (!res.ok) throw new Error('Failed to update tag');
       
-      setNoteTags(updatedTags);
       setEditingTagIndex(null);
       setEditingTagValue('');
       setFeedback('Tag updated!');
+      onRefresh?.();
       setTimeout(() => setFeedback(null), 2000);
     } catch (err) {
       setFeedback('Error updating tag');
@@ -321,7 +305,7 @@ export function StickyNoteCard({
     
     setLoading(true);
     try {
-      const updatedTags = noteTags.filter((_, index) => index !== editingTagIndex);
+      const updatedTags = tags.filter((_, index) => index !== editingTagIndex);
       
       const res = await fetch('/api/notes', {
         method: 'PUT',
@@ -335,10 +319,10 @@ export function StickyNoteCard({
       
       if (!res.ok) throw new Error('Failed to delete tag');
       
-      setNoteTags(updatedTags);
       setEditingTagIndex(null);
       setEditingTagValue('');
       setFeedback('Tag deleted!');
+      onRefresh?.();
       setTimeout(() => setFeedback(null), 2000);
     } catch (err) {
       setFeedback('Error deleting tag');
@@ -361,7 +345,7 @@ export function StickyNoteCard({
         onDelete(note.id);
       }
       setFeedback('Note deleted!');
-      onRefresh?.(); // Refresh after deleting card
+      onRefresh?.();
     } catch (err) {
       setFeedback('Error deleting note');
     } finally {
@@ -370,7 +354,7 @@ export function StickyNoteCard({
   };
 
   const handleSelectAll = () => {
-    const allIndices = noteTags.map((_, idx) => idx);
+    const allIndices = tags.map((_, idx) => idx);
     setSelectedTags(allIndices);
     allIndices.forEach(idx => onTagSelection?.(idx, true));
   };
@@ -385,7 +369,7 @@ export function StickyNoteCard({
     
     setLoading(true);
     try {
-      const updatedTags = noteTags.filter((_, index) => !selectedTags.includes(index));
+      const updatedTags = tags.filter((_, index) => !selectedTags.includes(index));
       
       const res = await fetch('/api/notes', {
         method: 'PUT',
@@ -399,10 +383,9 @@ export function StickyNoteCard({
       
       if (!res.ok) throw new Error('Failed to delete tags');
       
-      setNoteTags(updatedTags);
       setSelectedTags([]);
       setFeedback('Tags deleted!');
-      onRefresh?.(); // Refresh after deleting tags
+      onRefresh?.();
       setTimeout(() => setFeedback(null), 2000);
     } catch (err) {
       setFeedback('Error deleting tags');
@@ -453,7 +436,7 @@ export function StickyNoteCard({
               </div>
             ) : (
               <div className='flex flex-row gap-2 w-full'>
-                {selectedTags.length === noteTags.length ? (
+                {selectedTags.length === tags.length ? (
                   <button
                     className="p-1 rounded-full bg-red-500 text-white hover:bg-red-600"
                     onClick={handleDeselectAll}
@@ -517,7 +500,7 @@ export function StickyNoteCard({
         </div>
         <div className="flex justify-center">
           <div className="flex flex-col gap-1 border border-gray-800 rounded-md p-1 overflow-y-auto h-50 w-full">
-            {noteTags.map((tag, idx) => {
+            {tags.map((tag, idx) => {
               const colors = ['bg-red-100', 'bg-green-100', 'bg-gray-200', 'bg-blue-100', 'bg-purple-100'];
               const colorClass = colors[idx % colors.length];
               const isSelected = selectedTags.includes(idx);
@@ -570,7 +553,7 @@ export function StickyNoteCard({
                           Cancel
                         </Button>
                         <Button 
-                         className='w-20 text-red-900 hover:bg-red-900 hover:text-blue-700'
+                         className='w-18 text-red-900 hover:bg-red-900 hover:text-blue-700'
                           size="sm"
                           variant="destructive"
                           onClick={(e) => {

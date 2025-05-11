@@ -57,7 +57,7 @@ export function AIChatBox() {
   };
 
   return (
-    <Card className="w-120 h-200 mt-13 shadow-lg border border-muted bg-gray-700">
+    <Card className="w-120 h-200 mt-13 shadow-lg border border-muted bg-gray-500">
       <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
         <CardTitle className="text-xl font-semibold tracking-tight text-gray-200">Student AI Panel</CardTitle>
         <Button variant="ghost" size="icon" onClick={handleNewChat} title="New Chat">
