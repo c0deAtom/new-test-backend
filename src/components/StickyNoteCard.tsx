@@ -404,7 +404,7 @@ export function StickyNoteCard({
                 <input
                   value={editedContent}
                   onChange={handleContentChange}
-                  className="p-2 mx-3 font-bold h-5 bg-transparent resize-none text-gray-800 "
+                  className="p-2 mx-3 font-bold h-6 bg-transparent resize-none text-gray-800 "
                   autoFocus
                 />
                 <Button
@@ -459,7 +459,7 @@ export function StickyNoteCard({
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="h-6 text-xs"
+                      className="h-6 w-6 text-xs"
                       onClick={handleDeleteSelectedTags}
                       disabled={loading}
                     >
@@ -467,7 +467,7 @@ export function StickyNoteCard({
                         <Loader className="h-3 w-3 animate-spin" />
                       ) : (
                         <>
-                          <Trash2 className="h-3 w-3 mr-1" />
+                          <Trash2 className="h-3 w-2 " />
                           
                         </>
                       )}
