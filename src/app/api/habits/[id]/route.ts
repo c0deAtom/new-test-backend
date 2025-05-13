@@ -31,17 +31,17 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  context: any
+  { params }: { params: { id: string } }
 ) {
   try {
     // Delete associated events first due to foreign key constraints
     await prisma.habitEvent.deleteMany({
-      where: { habitId: context.params.id },
+      where: { habitId: params.id },
     });
 
     // Delete the habit
     await prisma.habit.delete({
-      where: { id: context.params.id },
+      where: { id: params.id },
     });
 
     return NextResponse.json({ message: "Habit deleted successfully" });
@@ -53,7 +53,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: Request,
-  context: any
+  { params }: { params: { id: string } }
 ) {
   try {
     const body = await request.json();
@@ -71,7 +71,7 @@ export async function PATCH(
     } = body;
 
     // Validate required fields
-    if (!context.params.id) {
+    if (!params.id) {
       return NextResponse.json({ error: 'Habit ID is required' }, { status: 400 });
     }
 
@@ -89,7 +89,7 @@ export async function PATCH(
     if (slipDefinition !== undefined) updateData.slipDefinition = slipDefinition;
 
     const updatedHabit = await prisma.habit.update({
-      where: { id: context.params.id },
+      where: { id: params.id },
       data: updateData,
     });
 

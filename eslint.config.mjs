@@ -11,16 +11,13 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
-{
-  "overrides": [
-    {
-      "rules": {
-        "@typescript-eslint/no-explicit-any": "off",
-        "react/jsx-key": "off",
-      }
-    }
-  ]
-}
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "react/jsx-key": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

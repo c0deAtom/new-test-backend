@@ -1,10 +1,12 @@
 import { MobileStickyNoteCard } from '@/components/MobileStickyNoteCard';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
+import { Loader, Plus, Pause, Play, Square, Volume2, Settings, ChevronDown, Maximize2, X as CloseIcon, Check } from "lucide-react";
 import React from 'react';
 import { toast } from "sonner";
-import { FullScreenNoteCard } from "@/app/mobile/FullScreenNoteCard";
+import { FullScreenNoteCard } from "./FullScreenNoteCard";
 
 export interface Note {
   id: string;
@@ -71,6 +73,7 @@ export function NotePage({
   setCurrentAudio,
   handleTagFinished,
 }: NotePageProps) {
+  // Loading states for optimistic updates
   const [processingNotes, setProcessingNotes] = React.useState<{
     [key: string]: {
       isDeleting?: boolean;
@@ -82,11 +85,12 @@ export function NotePage({
 
   const sortedNotes = [...notes].sort((a, b) => {
     if (notesSortBy === 'name') return a.content.localeCompare(b.content);
-    if (notesSortBy === 'createdAt') return 0;
+    if (notesSortBy === 'createdAt') return 0; // Replace with actual date if available
     return 0;
   });
 
   const handleNoteDelete = async (noteId: string) => {
+    // Optimistically remove the note
     setProcessingNotes(prev => ({ ...prev, [noteId]: { isDeleting: true } }));
     setNotes(prev => prev.filter(note => note.id !== noteId));
 
@@ -94,6 +98,7 @@ export function NotePage({
       const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete note');
     } catch (error) {
+      // Revert on error
       setNotes(prev => [...prev, notes.find(n => n.id === noteId)!]);
       toast.error('Failed to delete note');
     } finally {
@@ -109,6 +114,7 @@ export function NotePage({
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
 
+    // Optimistically update the note
     setProcessingNotes(prev => ({ ...prev, [noteId]: { isUpdating: true } }));
     setNotes(prev => prev.map(n => 
       n.id === noteId ? { ...n, content: value, tags: tags.map(name => ({ name })) } : n
@@ -122,6 +128,7 @@ export function NotePage({
       });
       if (!res.ok) throw new Error('Failed to update note');
     } catch (error) {
+      // Revert on error
       setNotes(prev => prev.map(n => n.id === noteId ? note : n));
       toast.error('Failed to update note');
     } finally {
@@ -137,6 +144,7 @@ export function NotePage({
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
 
+    // Optimistically add the tag
     setProcessingNotes(prev => ({
       ...prev,
       [noteId]: {
@@ -158,6 +166,7 @@ export function NotePage({
       });
       if (!res.ok) throw new Error('Failed to add tag');
     } catch (error) {
+      // Revert on error
       setNotes(prev => prev.map(n => n.id === noteId ? note : n));
       toast.error('Failed to add tag');
     } finally {
@@ -175,6 +184,7 @@ export function NotePage({
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
 
+    // Optimistically remove the tags
     setProcessingNotes(prev => ({
       ...prev,
       [noteId]: {
@@ -202,6 +212,7 @@ export function NotePage({
       });
       if (!res.ok) throw new Error('Failed to delete tags');
     } catch (error) {
+      // Revert on error
       setNotes(prev => prev.map(n => n.id === noteId ? note : n));
       toast.error('Failed to delete tags');
     } finally {
@@ -217,6 +228,7 @@ export function NotePage({
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
 
+    // Optimistically update the tag
     setProcessingNotes(prev => ({
       ...prev,
       [noteId]: {
@@ -238,6 +250,7 @@ export function NotePage({
       });
       if (!res.ok) throw new Error('Failed to edit tag');
     } catch (error) {
+      // Revert on error
       setNotes(prev => prev.map(n => n.id === noteId ? note : n));
       toast.error('Failed to edit tag');
     } finally {
@@ -300,7 +313,7 @@ export function NotePage({
           </DropdownMenu>
         </div>
       </div>
-      <div className="p-5 w-full">
+      <div className="p-5 w-full   ">
         {notesView === 'list' ? (
           <div className="w-full flex flex-col gap-2">
             {sortedNotes.map((note) => (
@@ -310,10 +323,10 @@ export function NotePage({
                 className="justify-start w-full px-3 py-2 rounded text-left text-base font-medium border bg-yellow-100 border-gray-200 hover:bg-yellow-300"
                 onClick={() => setFullscreenNoteId(note.id)}
               >
-                <div className='min-w-40'>
-                  {note.content} 
+              <div className='min-w-40'>
+                {note.content} 
                 </div>
-                <div className="text-xs text-gray-500 overflow-y-auto">{note.tags.map(tag => tag.name).join(', ')}</div>
+                <div className="text-xs text-gray-500 overflow-y-auto scrollbar-hide">{note.tags.map(tag => tag.name).join(', ')}</div>
               </Button>
             ))}
           </div>
@@ -380,6 +393,7 @@ export function NotePage({
           </div>
         )}
       </div>
+      {/* Fullscreen overlay */}
       {fullscreenNoteId && (
         <FullScreenNoteCard
           note={notes.find(n => n.id === fullscreenNoteId)!}
