@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { NextRequest } from 'next/server';
+import { Navbar } from "@/components/Navbar"
 
 const prisma = new PrismaClient();
 
