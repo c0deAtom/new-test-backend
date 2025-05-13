@@ -37,9 +37,9 @@ export async function POST(request: Request, { params }: any) {
 }
 
 // Update an existing event
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, context: any) {
   try {
-    const habitEventId = params.id;
+    const habitEventId = context.params.id;
     const body = await request.json();
 
     const { mood, intensity, reflectionNote, emotionTags } = body;
@@ -62,7 +62,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 }
 
 // Delete an event
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: any) {
   try {
     const { id: eventId } = await request.json();
 
