@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Plus, Volume2, Square, Pause, Play, Settings } from "lucide-react";
+import { Plus, Volume2, Square, Pause, Play, Settings, Loader } from "lucide-react";
 import { toast } from "sonner";
 import { StickyNoteCard, StickyNoteCardSkeleton } from '@/components/StickyNoteCard';
 import {
@@ -31,6 +31,7 @@ export default function StudentPage() {
   const [currentTagRepeat, setCurrentTagRepeat] = useState(1);
   const [currentSequence, setCurrentSequence] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingCard, setIsAddingCard] = useState(false);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -59,6 +60,7 @@ export default function StudentPage() {
   }, []);
 
   const handleAddCard = async () => {
+    setIsAddingCard(true);
     try {
       const res = await fetch('/api/notes', {
         method: 'POST',
@@ -70,6 +72,8 @@ export default function StudentPage() {
       toast.success('New note added!');
     } catch {
       toast.error('Error creating note');
+    } finally {
+      setIsAddingCard(false);
     }
   };
 
@@ -215,8 +219,12 @@ export default function StudentPage() {
     <div className="w-full">
       <div className="flex flex-col">
         <div className="flex gap-2 items-center">
-          <Button onClick={handleAddCard} className="w-10 bg-gray-400">
-            <Plus className="h-5 w-5" /> 
+          <Button onClick={handleAddCard} className="w-10 bg-gray-400" disabled={isAddingCard}>
+            {isAddingCard ? (
+              <Loader className="h-5 w-5 animate-spin" />
+            ) : (
+              <Plus className="h-5 w-5" />
+            )}
           </Button>
           {currentPlayingTag ? (
             <Button 

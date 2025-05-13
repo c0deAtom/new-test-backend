@@ -99,6 +99,8 @@ export function StickyNoteCard({
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Cleanup audio URL when component unmounts
   useEffect(() => {
@@ -477,20 +479,54 @@ export function StickyNoteCard({
                     className="h-4 w-4 cursor-pointer text-gray-500 hover:text-gray-700" 
                     onClick={() => setEditing(true)} 
                   />
-                  <DropdownMenu>
+                  <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-4 w-4 p-0">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600 w-6 h-4"
-                        onClick={handleDeleteCard}
-                      >
-                        <Trash2 className="mr-2 h-2 w-4" />
-                        Delete
-                      </DropdownMenuItem>
+                    <DropdownMenuContent align="end" className=''>
+                      {!showDeleteDialog ? (
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600 w-6 h-4"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                            
+                          <Trash2 className="mr-2 h-2 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      ) : (
+                        <>
+                         
+                          <DropdownMenuItem
+                            className="text-gray-600 focus:text-gray-600 w-6 h-4 "
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowDeleteDialog(false);
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <X className="mr-2 h-2 w-4 " />
+                            No
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            className="text-green-600 focus:text-green-600 w-6 h-4"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDeleteCard();
+                              setShowDeleteDialog(false);
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <Check className="mr-2 h-2 w-4" />
+                            Yes
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

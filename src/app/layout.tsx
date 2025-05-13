@@ -30,18 +30,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Navbar />
-          <main className="container mx-auto py-4">
+       
+         
+          
             {children}
-          </main>
+          
           <Toaster />
-        </ThemeProvider>
+       
       </body>
     </html>
   );
