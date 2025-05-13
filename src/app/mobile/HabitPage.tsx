@@ -119,7 +119,7 @@ export function HabitPage({
   };
 
   return (
-    <div className="w-full flex flex-col items-center px-5">
+    <div className="w-full flex flex-col items-center">
       <div className="w-full flex flex-row items-center justify-end mb-2 px-1 mt-6">
         <div className="flex flex-row gap-0 items-center border border-gray-300 rounded overflow-hidden bg-white">
           {(['icon', 'list', 'big'] as const).map(type => (
@@ -167,14 +167,47 @@ export function HabitPage({
           </DropdownMenu>
         </div>
       </div>
-      <div className={
-        routineView === 'list'
-          ? 'w-full flex flex-col gap-3'
-          : routineView === 'big'
-            ? 'w-full grid grid-cols-1 gap-3'
-            : 'w-full grid grid-cols-2 gap-3'
-      }>
-        {showAddHabitForm && (
+      <div className="p-5 w-full">
+        {routineView === 'list' ? (
+          <div className="w-full flex flex-col gap-2">
+            {sortedHabits.map((habit) => (
+              <Button
+                key={habit.id}
+                variant="ghost"
+                className="justify-start w-full px-3 py-2 rounded text-left text-base font-medium border bg-yellow-100 border-gray-200 hover:bg-yellow-300"
+                onClick={() => console.log(true)} // You may want to open a fullscreen modal for editing
+              >
+                <div className='min-w-40'>
+                  {habit.name}
+                </div>
+                <div className="text-xs text-gray-500 overflow-y-auto scrollbar-hide">{habit.microGoal}</div>
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <div className={
+            routineView === 'big'
+              ? 'w-full grid grid-cols-1 gap-3'
+              : 'w-full grid grid-cols-2 gap-3'
+          }>
+            {sortedHabits.map((habit) => (
+              <MobileRoutineCard
+                key={habit.id}
+                data={habit}
+                view={routineView}
+                isProcessing={processingHabits[habit.id]}
+                onDelete={() => handleHabitDelete(habit.id)}
+                onUpdate={(updates) => handleHabitUpdate(habit.id, updates)}
+                onComplete={(completed) => handleHabitComplete(habit.id, completed)}
+                onRefresh={fetchHabits}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Add Habit Form Modal */}
+      {showAddHabitForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="mb-4 mt-1 bg-yellow-100 shadow-md rounded-md min-h-60 w-full max-w-md mx-auto aspect-square flex flex-col justify-center relative">
             <Button
               variant="ghost"
@@ -190,20 +223,8 @@ export function HabitPage({
               onRefresh={fetchHabits}
             />
           </div>
-        )}
-        {sortedHabits.map((habit) => (
-          <MobileRoutineCard
-            key={habit.id}
-            data={habit}
-            onRefresh={fetchHabits}
-            view={routineView}
-            isProcessing={processingHabits[habit.id]}
-            onDelete={() => handleHabitDelete(habit.id)}
-            onUpdate={(updates) => handleHabitUpdate(habit.id, updates)}
-            onComplete={(completed) => handleHabitComplete(habit.id, completed)}
-          />
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 } 

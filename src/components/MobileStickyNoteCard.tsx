@@ -15,7 +15,7 @@ interface MobileStickyNoteCardProps {
   note: { id: string; content: string };
   index: number;
   tags: string[];
-  onChange: (value: string) => void;
+  onChange: (value: string, tags: string[]) => void;
   onBlur: () => void;
   onDelete?: (id: string) => void;
   onTagSelection?: (tagIndex: number, isSelected: boolean) => void;
@@ -204,20 +204,27 @@ export function MobileStickyNoteCard({
                   size="sm"
                   onClick={async () => {
                     setContentSaving(true);
+                    setFeedback(null);
                     try {
                       const res = await fetch('/api/notes', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: note.id, content: editedContent, tags }),
+                        body: JSON.stringify({
+                          id: note.id,
+                          content: editedContent,
+                          tags: tags,
+                        }),
                       });
-                      if (!res.ok) throw new Error('Failed to update note');
-                      onChange(editedContent);
+                      if (!res.ok) {
+                        const errorData = await res.json().catch(() => ({}));
+                        throw new Error(errorData.details || 'Failed to update note');
+                      }
+                      onChange(editedContent, tags);
                       setEditing(false);
                       setFeedback('Saved!');
-                      if (onTagEdit) onTagEdit(index, editedContent);
                       setTimeout(() => setFeedback(null), 2000);
-                    } catch {
-                      setFeedback('Error saving');
+                    } catch (err: any) {
+                      setFeedback(err.message || 'Error saving');
                     } finally {
                       setContentSaving(false);
                     }

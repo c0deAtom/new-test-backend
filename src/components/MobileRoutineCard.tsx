@@ -199,17 +199,18 @@ export function MobileRoutineCard({ data, onRefresh, view = 'icon', isProcessing
     <Card
       style={dynamicBoxShadow ? { boxShadow: dynamicBoxShadow } : undefined}
       className={clsx(
-        "mb-4 mt-1 bg-yellow-100 shadow-md rounded-md min-h-60 w-full max-w-md mx-auto aspect-square transition-all duration-300",
-        view === 'big' && 'scale-105',
+        'mb-4 mt-1 bg-yellow-100 shadow-md rounded-md w-full max-w-md mx-auto aspect-square transition-all duration-300',
+        view === 'big' && 'scale-105 min-h-[400px] h-170 mb-10',
+        view === 'icon' && 'min-h-67 h-67 w-70 scale-95',
         view === 'list' && 'aspect-auto min-h-32',
         {
-          "ring-2 ring-green-500": isHitDominant && combo && hitCount > slipCount,
-          "ring-2 ring-red-500": !isHitDominant && combo && slipCount > hitCount,
+          'ring-2 ring-green-500': isHitDominant && combo && hitCount > slipCount,
+          'ring-2 ring-red-500': !isHitDominant && combo && slipCount > hitCount,
         }
       )}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2">
-        <CardTitle className="text-base font-bold truncate max-w-[70%] text-gray-800">
+      <CardHeader className={clsx('flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2', view === 'list' && 'px-3 py-2')}> 
+        <CardTitle className={clsx('text-base font-bold truncate max-w-[70%] text-gray-800', view === 'list' && 'text-base font-medium')}> 
           {data.name || <span className="text-gray-400">Untitled</span>}
         </CardTitle>
         <div className="flex items-center space-x-1 text-lg font-bold">
@@ -278,11 +279,11 @@ export function MobileRoutineCard({ data, onRefresh, view = 'icon', isProcessing
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2 p-2 pt-0 flex-1 justify-between">
-        <div className="text-xs text-muted-foreground mb-1 min-h-[18px]">
+      <CardContent className={clsx('flex flex-col gap-2 p-2 pt-0 flex-1 justify-between ', view === 'list' && 'p-2')}> 
+        <div className={clsx('text-xs text-muted-foreground mb-1 min-h-[18px]', view === 'list' && 'mb-0')}> 
           {data.microGoal || <span className="text-gray-300">No micro-goal set</span>}
         </div>
-        <div className="flex flex-row gap-2 items-center justify-between w-full mt-1 mb-2">
+        <div className={clsx('flex flex-row gap-2 items-center justify-between w-full mt-1 mb-2', view === 'list' && 'mt-0 mb-0')}> 
           <Button
             variant="outline"
             size="sm"
@@ -314,7 +315,7 @@ export function MobileRoutineCard({ data, onRefresh, view = 'icon', isProcessing
               )}
             </span>
           </div>
-          <ScrollArea className="h-16">
+          <ScrollArea className={clsx(view === 'big' ? 'h-90' : 'h-16')}>
             <div className="space-y-0.5">
               {localEvents
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -323,15 +324,15 @@ export function MobileRoutineCard({ data, onRefresh, view = 'icon', isProcessing
                   <div
                     key={event.id}
                     className={cn(
-                      "flex items-center gap-1.5 py-1 text-[10px] rounded-sm hover:bg-muted/50 px-1 gap-6",
-                      selectedEvents.includes(event.id) && "bg-muted"
+                      'flex items-center gap-1.5 py-1 text-[10px] rounded-sm hover:bg-muted/50 px-1 gap-6',
+                      selectedEvents.includes(event.id) && 'bg-muted'
                     )}
                   >
                     <span className={cn(
-                      "h-5 w-20 inline-flex items-center rounded-sm px-1 py-0.5 font-medium min-w-[32px] justify-center",
+                      'h-5 w-20 inline-flex items-center rounded-sm px-1 py-0.5 font-medium min-w-[32px] justify-center',
                       event.type === 'HIT' 
-                        ? "bg-green-100 text-green-700" 
-                        : "bg-red-100 text-red-700"
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
                     )}>
                       {event.type}
                     </span>

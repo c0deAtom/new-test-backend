@@ -132,6 +132,7 @@ export default function MobilePage() {
     setIsPlaying(true);
     setCurrentTagRepeat(1);
     setCurrentSequence(1);
+    // Play the first selected tag across all notes
     const firstTag = selectedTags[0];
     setCurrentPlayingTag(null);
     setTimeout(() => setCurrentPlayingTag(firstTag), 0);
@@ -167,11 +168,10 @@ export default function MobilePage() {
   // Robust repeat/sequence play logic
   const handleTagFinished = () => {
     if (!isPlaying || currentPlayingTag == null) return;
-    const tagIndices = selectedTags
-      .filter(tag => tag.noteId === currentPlayingTag.noteId)
-      .map(tag => tag.tagIndex);
-    const sortedTagIndices = [...tagIndices].sort((a, b) => a - b);
-    const currentIndex = sortedTagIndices.indexOf(currentPlayingTag.tagIndex);
+    // Find the index of the current tag in the flat selectedTags array
+    const currentIndex = selectedTags.findIndex(
+      tag => tag.noteId === currentPlayingTag.noteId && tag.tagIndex === currentPlayingTag.tagIndex
+    );
 
     // If we haven't reached the repeat count for current tag
     if (currentTagRepeat < tagRepeatCount) {
@@ -185,11 +185,11 @@ export default function MobilePage() {
     // Reset tag repeat counter for next tag
     setCurrentTagRepeat(1);
 
-    // If there are more tags in the sequence
-    if (currentIndex < sortedTagIndices.length - 1) {
-      const nextTagIndex = sortedTagIndices[currentIndex + 1];
-      setCurrentPlayingTag({ noteId: currentPlayingTag.noteId, tagIndex: nextTagIndex });
-      setCurrentPlayingTagIndex(nextTagIndex);
+    // If there are more tags in the flat selectedTags array
+    if (currentIndex < selectedTags.length - 1) {
+      const nextTag = selectedTags[currentIndex + 1];
+      setCurrentPlayingTag(nextTag);
+      setCurrentPlayingTagIndex(nextTag.tagIndex);
       return;
     }
 
@@ -245,9 +245,13 @@ export default function MobilePage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex flex-col relative ">
       {/* Top App Bar */}
       <header className="fixed top-0 left-0 right-0 w-full z-20 bg-white/80 backdrop-blur border-b border-gray-200 shadow-sm flex items-center h-14">
-        <Button variant="ghost" size="icon" className="ml-2 mr-2" onClick={() => setDrawerOpen(prev => !prev)}>
+       {!drawerOpen ?  (<Button variant="ghost" size="icon" className="ml-2 mr-2" onClick={() => setDrawerOpen(prev => !prev)}>
           <Menu className="h-8 w-8 size-lg text-gray-700 hover:text-gray-900" />
-        </Button>
+        </Button>) : (  
+        <Button variant="ghost" size="icon" className="ml-2 mr-2"  onClick={() => setDrawerOpen(false)}>
+              <X className="h-6 w-6" />
+            </Button>
+        )}
         <div className="ml-auto mr-6">
         {/* Action buttons for Notes tab */}
         {activeTab === 'notes' && (
@@ -328,9 +332,7 @@ export default function MobilePage() {
         >
           <div className="flex items-center justify-between p-4 border-b">
             <span className="font-semibold text-lg">{userName}</span>
-            <Button variant="ghost" size="icon" onClick={() => setDrawerOpen(false)}>
-              <X className="h-6 w-6" />
-            </Button>
+          
           </div>
           <div className=" flex flex-col gap-2 flex-1">
             <Button

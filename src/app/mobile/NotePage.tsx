@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuIte
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader, Plus, Pause, Play, Square, Volume2, Settings, ChevronDown, Maximize2, X as CloseIcon } from "lucide-react";
+import { Loader, Plus, Pause, Play, Square, Volume2, Settings, ChevronDown, Maximize2, X as CloseIcon, Check } from "lucide-react";
 import React from 'react';
 import { toast } from "sonner";
 import { FullScreenNoteCard } from "./FullScreenNoteCard";
@@ -304,7 +304,7 @@ export function NotePage({
                 Name
               </DropdownMenuItem>
               <DropdownMenuItem
-                className={`text-xs ${notesSortBy === 'createdAt' ? 'bg-yellow-100 font-bold' : ''}`}
+                className={`text-xs  ${notesSortBy === 'createdAt' ? 'bg-yellow-100 font-bold'  : ''}`}
                 onClick={() => setNotesSortBy('createdAt')}
               >
                 Date
@@ -342,7 +342,7 @@ export function NotePage({
                 note={note}
                 index={index}
                 tags={note.tags.map(tag => tag.name)}
-                onChange={(value: string) => handleNoteUpdate(note.id, value, note.tags.map(t => t.name))}
+                onChange={(value: string, tags: string[]) => handleNoteUpdate(note.id, value, tags)}
                 onDelete={() => handleNoteDelete(note.id)}
                 onBlur={() => handleNoteUpdate(note.id, note.content, note.tags.map(t => t.name))}
                 onTagSelection={(tagIndex: number, isSelected: boolean) => {
