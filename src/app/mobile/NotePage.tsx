@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader, Plus, Pause, Play, Square, Volume2, Settings, ChevronDown, Maximize2, X as CloseIcon, Check } from "lucide-react";
 import React from 'react';
 import { toast } from "sonner";
-import { FullScreenNoteCard } from "./FullScreenNoteCard";
+import { FullScreenNoteCard } from "@/app/mobile/FullScreenNoteCard";
 
 export interface Note {
   id: string;
