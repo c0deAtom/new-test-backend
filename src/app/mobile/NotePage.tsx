@@ -268,7 +268,7 @@ export function NotePage({
     <div className="w-full flex flex-col items-center">
       <div className="w-full flex flex-row items-center justify-end mb-2 px-1 mt-6">
         <div className="mr-5 flex flex-row gap-0 items-center border border-gray-300 rounded overflow-hidden bg-white">
-          {(['icon', 'list', 'big'] as const).map(type => (
+          {(['icoon', 'list', 'big'] as const).map(type => (
             <div key={type} className="relative">
               <div
                 className={`w-14 h-7 flex items-center justify-center cursor-pointer text-xs border-0 ${notesView === type ? 'bg-yellow-200' : ''}`}
