@@ -4,8 +4,8 @@ import { NextRequest } from 'next/server';
 
 const prisma = new PrismaClient();
 
-export async function POST(req: NextRequest, { params }: { params: { habitId: string } }) {
-  const habitId = params.habitId;
+export async function POST(req: NextRequest, context: any) {
+  const habitId = context.params.habitId;
   const body = await req.json();
 
   try {
