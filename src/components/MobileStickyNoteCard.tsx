@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil, MoreVertical, Trash2, Check, X, Loader, Maximize2, Mic, Image as ImageIcon, Play, Pause, StopCircle, Circle, Music, FileText, Waves } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,110 +110,6 @@ export function MobileStickyNoteCard({
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (
-      isPlayingAll &&
-      currentPlayingTag?.noteId === note.id &&
-      currentPlayingTag.tagIndex !== currentPlayingIndex
-    ) {
-      const tagToPlay = tags[currentPlayingTag.tagIndex];
-      const isImageTag = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagToPlay) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagToPlay);
-      const isAudioTag = tagToPlay.endsWith('.webm') || tagToPlay.endsWith('.mp3') || tagToPlay.endsWith('.wav');
-      if (isImageTag) {
-        if (onTagFinished) onTagFinished();
-        return;
-      }
-      if (isAudioTag) {
-        playAudioFile(tagToPlay, currentPlayingTag.tagIndex);
-        return;
-      }
-      if (tagToPlay) {
-        playTag(tagToPlay, currentPlayingTag.tagIndex);
-      }
-    }
-  }, [isPlayingAll, currentPlayingTag, tags, currentPlayingIndex]);
-
-  const playTag = async (tag: string, tagIndex: number) => {
-    try {
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-        setAudioUrl(null);
-      }
-      setCurrentAudio(null);
-      setCurrentPlayingIndex(tagIndex);
-      const isHindi = /[\u0900-\u097F]/.test(tag);
-      const response = await fetch('/api/elevenlabs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          text: tag,
-          voiceId: isHindi ? '21m00Tcm4TlvDq8ikWAM' : undefined
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || 'Failed to convert text to speech');
-      }
-      const audioBlob = await response.blob();
-      const url = URL.createObjectURL(audioBlob);
-      setAudioUrl(url);
-      const newAudio = new Audio(url);
-      setCurrentAudio(newAudio);
-      newAudio.onended = () => {
-        URL.revokeObjectURL(url);
-        setAudioUrl(null);
-        setCurrentPlayingIndex(null);
-        setCurrentAudio(null);
-        if (onTagFinished) onTagFinished();
-      };
-      newAudio.onerror = () => {
-        setCurrentPlayingIndex(null);
-        URL.revokeObjectURL(url);
-        setAudioUrl(null);
-        setCurrentAudio(null);
-        if (onStopPlaying) onStopPlaying();
-      };
-      await newAudio.play();
-    } catch (error) {
-      setCurrentPlayingIndex(null);
-      setCurrentAudio(null);
-      if (onStopPlaying) onStopPlaying();
-    }
-  };
-
-  const playAudioFile = (url: string, tagIndex: number) => {
-    let audioUrl = url;
-    if (!audioUrl.startsWith('http') && !audioUrl.startsWith('/audios/')) {
-      audioUrl = '/audios/' + audioUrl;
-    }
-    if (audioUrl && audioUrl !== url) {
-      // Optionally, revoke previous object URL if it was one
-      if (audioUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(audioUrl);
-      }
-    }
-    if (audioUrl && audioUrl !== url) {
-      setAudioUrl(audioUrl);
-    }
-    setCurrentAudio(null);
-    setCurrentPlayingIndex(tagIndex);
-    const audio = new Audio(audioUrl);
-    setCurrentAudio(audio);
-    audio.onended = () => {
-      setCurrentPlayingIndex(null);
-      setCurrentAudio(null);
-      if (onTagFinished) onTagFinished();
-    };
-    audio.onerror = () => {
-      setCurrentPlayingIndex(null);
-      setCurrentAudio(null);
-      if (onTagFinished) onTagFinished();
-    };
-    audio.play();
-  };
 
   const handleTagInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTagInput(e.target.value);
@@ -391,21 +287,13 @@ export function MobileStickyNoteCard({
             ) : (
               <div className='flex flex-row gap-2 w-full h-4'>
                 <button
-                  className={`p-1 rounded-full w-8 h-5 transition-colors duration-150
-                    ${tags.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : selectedTags.length === tags.length && selectMode ? 'bg-green-400 text-white hover:bg-green-500'
-                      : 'bg-blue-100 text-blue-700 hover:bg-blue-300'}
-                  `}
+                  className={`p-1 rounded-full ${selectedTags.length === tags.length ? 'bg-green-500 text-white' : 'bg-blue-200 text-blue-700 hover:bg-blue-300'}`}
                   disabled={tags.length === 0}
                   onClick={() => {
-                    if (!selectMode) {
-                      setSelectMode(true);
-                      deselectAllTags();
-                    } else if (selectedTags.length !== tags.length) {
+                    if (selectedTags.length !== tags.length) {
                       selectAllTags();
                     } else {
                       deselectAllTags();
-                      setSelectMode(false);
                     }
                   }}
                 >
@@ -584,7 +472,7 @@ export function MobileStickyNoteCard({
                 isAudioTag = pt.type === 'audio';
               } else {
                 isImageTag = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tag) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tag);
-                isAudioTag = tag.endsWith('.webm') || tag.endsWith('.mp3') || tag.endsWith('.wav');
+                isAudioTag = /\.(webm|mp3|wav|m4a|ogg|aac)$/i.test(tag) || /^https?:\/\/.+\.(webm|mp3|wav|m4a|ogg|aac)$/i.test(tag);
               }
               // Replace expandedIndex logic with allTagsExpanded
               const expanded = allTagsExpanded || expandedIndex === idx;
@@ -599,310 +487,98 @@ export function MobileStickyNoteCard({
                     `${colorClass} text-gray-800 rounded px-1 py-1 text-sm w-full cursor-pointer transition-all duration-300 ease-in-out ` +
                     `${expanded ? 'whitespace-normal break-words w-fit' : 'whitespace-nowrap w-full min-w-fit '} ` +
                     `shrink-0 ` +
-                    `${isCurrentlyPlaying ? 'ring-2 ring-green-500 animate-pulse bg-gradient-to-r from-green-200 via-blue-200 to-purple-100' : ''} ` +
+                    `${isCurrentlyPlaying ? 'border-4 border-blue-700 bg-blue-200 ring-2 ring-blue-400 animate-pulse' : ''} ` +
                     `${isSelected && !isCurrentlyPlaying ? 'ring-2 ring-gray-400' : ''} ` +
                     `${isDeleting ? 'opacity-0 scale-95' : ''} ` +
                     `${isPending ? 'opacity-50' : ''}`
                   }
                   style={{ wordBreak: expanded ? 'break-word' : undefined }}
                 >
-                  {isEditingTag ? (
-                    <div className="flex flex-raw gap-2 w-full " onClick={e => e.stopPropagation()}>
-                       
-                        <div className="flex items-center flex-col gap-2 mt-1">
-                        <Button
-                          className={`p-1 rounded-full w-4 h-8  ${loading ? 'bg-green-700 text-white' : 'bg-green-500 text-white hover:bg-green-600'}`}
-                          size="icon"
-                          onClick={async e => {
-                            e.stopPropagation();
-                            if (editingTagIndex === null || !note.id) return;
-                            setLoading(true);
-                            try {
-                              const updatedTags = [...tags];
-                              updatedTags[editingTagIndex] = editingTagValue.trim();
-                              const res = await fetch('/api/notes', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: note.id, content: note.content, tags: updatedTags }),
-                              });
-                              if (!res.ok) throw new Error('Failed to update tag');
-                              setEditingTagIndex(null);
-                              setEditingTagValue('');
-                              setFeedback('Tag updated!');
-                              if (onTagEdit) onTagEdit(editingTagIndex, editingTagValue.trim());
-                              setTimeout(() => setFeedback(null), 2000);
-                            } catch {
-                              setFeedback('Error updating tag');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          disabled={loading}
-                        >
-                          {loading ? <Loader className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                        </Button>
-                        <Button
-                            className="p-1 w-4 h-8 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
-                          size="icon"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setEditingTagIndex(null);
-                            setEditingTagValue('');
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          className={`p-1 w-4 h-8 rounded-full ${loading ? 'bg-red-700 text-white' : 'bg-red-500 text-white hover:bg-red-600'}`}
-                          size="icon"
-                          onClick={async e => {
-                            e.stopPropagation();
-                            if (editingTagIndex === null || !note.id) return;
-                            setLoading(true);
-                            try {
-                              const updatedTags = tags.filter((_, i) => i !== editingTagIndex);
-                              const res = await fetch('/api/notes', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: note.id, content: note.content, tags: updatedTags }),
-                              });
-                              if (!res.ok) throw new Error('Failed to delete tag');
-                              setEditingTagIndex(null);
-                              setEditingTagValue('');
-                              setFeedback('Tag deleted!');
-                              if (onTagDelete) onTagDelete([editingTagIndex]);
-                              setTimeout(() => setFeedback(null), 2000);
-                            } catch {
-                              setFeedback('Error deleting tag');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          disabled={loading}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                       
-                        
+                  <div className="flex items-center gap-2">
+                    {/* Tag selection button and wave icon if currently playing */}
+                    {isEditingTag ? (
                       <textarea
                         value={editingTagValue}
-                        onChange={e => setEditingTagValue(e.target.value)}
-                        className="w-full   h-40 bg-transparent border border-gray-200 resize-y text-gray-800 focus:ring-0 focus:outline-none whitespace-pre-wrap break-words overflow-y-auto rounded-sm px-1 "
                         autoFocus
-                        style={{ wordBreak: expanded ? 'break-word' : undefined }}
+                        className="border border-gray-400 rounded px-1 py-0.5 text-base font-medium w-full min-h-20 bg-white resize-none"
+                        onChange={e => setEditingTagValue(e.target.value)}
+                        onBlur={() => {
+                          if (editingTagValue.trim() && editingTagValue !== tag) {
+                            onTagEdit?.(idx, editingTagValue.trim());
+                          }
+                          setEditingTagIndex(null);
+                          setEditingTagValue('');
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (editingTagValue.trim() && editingTagValue !== tag) {
+                              onTagEdit?.(idx, editingTagValue.trim());
+                            }
+                            setEditingTagIndex(null);
+                            setEditingTagValue('');
+                          } else if (e.key === 'Escape') {
+                            setEditingTagIndex(null);
+                            setEditingTagValue('');
+                          }
+                        }}
                       />
-                     
-                    </div>
-                  ) : (
-                    <div className="flex items-top ">
-                        <div className='flex flex-col items-center gap-1'>
-                      {(selectMode || expanded) && (
-                         isCurrentlyPlaying ? (
-                          <div className=" flex items-center justify-center gap-2 p-1">
-                         
-                            <span className="relative flex items-center h-2 w-4 ">
-                              {/* Waveform animation */}
-                              <span className="block h-1.5 w-0.5 bg-blue-400 mx-0.25 animate-wave1 rounded-sm" />
-                              <span className="block h-2 w-0.5 bg-blue-500 mx-0.25 animate-wave2 rounded-sm" />
-                              <span className="block h-1 w-0.5 bg-blue-400 mx-0.25 animate-wave3 rounded-sm" />
-                              <span className="block h-1.75 w-0.5 bg-blue-500 mx-0.25 animate-wave1 rounded-sm" />
-                              <span className="block h-0.75 w-0.5 bg-blue-400 mx-0.25 animate-wave2 rounded-sm" />
-                            </span>
-                            <style jsx>{`
-                              @keyframes wave1 { 0%,100%{height:0.25rem;} 50%{height:0.5rem;} }
-                              @keyframes wave2 { 0%,100%{height:0.5rem;} 50%{height:0.125rem;} }
-                              @keyframes wave3 { 0%,100%{height:0.375rem;} 50%{height:0.75rem;} }
-                              .animate-wave1 { animation: wave1 1s infinite; }
-                              .animate-wave2 { animation: wave2 1s infinite; }
-                              .animate-wave3 { animation: wave3 1s infinite; }
-                            `}</style>
-                          </div>
-                        ) : (
+                    ) : (
+                      <>
                         <button
-                          className={`p-1 rounded-full ${isSelected ? 'bg-green-500 text-white' : 'bg-blue-200 hover:bg-blue-300'}`}
+                          className={`p-1 rounded-full ${isSelected ? 'bg-green-500 text-white' : 'bg-blue-200 text-blue-700 hover:bg-blue-300'}`}
                           onClick={e => { e.stopPropagation(); if (!isPending) onTagSelection?.(idx, !isSelected); }}
                           disabled={isDeleting || isPending}
                         >
                           {isDeleting || isPending ? (
                             <Loader className="h-3 w-3 animate-spin" />
                           ) : (
-                           <Check className="h-3 w-3" color='blue' />)
-                           
-                          }
-                        </button>)
+                            <Check className="h-3 w-3" color='blue' />
+                          )}
+                        </button>
+                        {/* Only show type icon if not expanded */}
+                        {!expanded && (
+                          isAudioTag ? (
+                            <Music className="h-4 w-4 text-blue-500" />
+                          ) : isImageTag ? (
+                            <ImageIcon className="h-4 w-4 text-purple-500" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-gray-500" />
+                          )
+                        )}
+                        {tag}
+                        {isCurrentlyPlaying && (
+                          <Waves className="h-4 w-4 text-blue-500 animate-pulse ml-1" />
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {expanded && !isDeleting && !isPending && (
+                    <div className=''>
+                      {!isEditingTag && (
+                        <button
+                          className="text-gray-500 hover:text-blue-600"
+                          onClick={e => { e.stopPropagation(); setEditingTagIndex(idx); setEditingTagValue(tag); }}
+                        >
+                          <Pencil size={15} className='ml-auto'/>
+                        </button>
                       )}
-                 
-                      {expanded && !isDeleting && !isPending && (
-                        <div className=''>
-                          <button
-                            className="text-gray-500 hover:text-blue-600"
-                            onClick={e => { e.stopPropagation(); setEditingTagIndex(idx); setEditingTagValue(tag); }}
-                          >
-                            <Pencil size={15} className='ml-auto'/>
-                          </button>
-                          </div>
-                        )}
-                        </div>
-                      <div className='flex-1 ml-1'>
-                        
-                        {expanded && isImageTag ? (
-                          <div className="flex flex-col items-start relative">
-                             <button  className="absolute  right-[-5] top-[-5] z-10" onClick={e => { e.stopPropagation(); setExpandedIndex(null); }}>
-                                <X className="h-4 w-4"  color='red'/>
-                              </button>
-                            {/* No icon in expanded view */}
-                            <img
-                              src={tag}
-                              alt="tag-img"
-                              className="mt-1 max-h-48 rounded border border-gray-300 shadow cursor-pointer"
-                              style={{ maxWidth: '100%' }}
-                              onClick={e => {
-                                e.stopPropagation();
-                                setModalImageUrl(tag);
-                                setIsImageModalOpen(true);
-                              }}
-                            />
-                          </div>
-                        ) : isImageTag ? (
-                          <span className={expanded ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
-                            <ImageIcon className="h-4 w-4 mr-1 text-purple-400" />
-                            {isPending
-                              ? pendingName
-                              : (() => {
-                                  const file = tag.split('/').pop() || '';
-                                  const name = file.replace(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i, '').replace(/[^a-zA-Z ]+/g, ' ').replace(/ +/g, ' ').trim();
-                                  return name || 'Image';
-                                })()
-                            }
-                            {isPending && <Loader className="h-3 w-3 ml-1 animate-spin text-blue-400" />}
-                          </span>
-                        ) : isAudioTag ? (
-                          expanded ? (
-                            <div className={`custom-audio-player relative flex flex-col items-start w-full ${playingAudioIdx === idx ? 'ring-2 ring-blue-400 bg-blue-50' : ''}`} onClick={e => e.stopPropagation()}>
-                              <button className="absolute right-[-5] top-[-5] z-10" onClick={e => { e.stopPropagation(); setExpandedIndex(null); }}>
-                                <X className="h-4 w-4"  color='red'/>
-                              </button>
-                              {/* No icon in expanded view */}
-                              <div className="flex items-center gap-2 mb-1 text-blue-700 font-medium ">
-                                {/* <Music className="h-5 w-5" /> Audio Note */}
-                              </div>
-                              <div className="flex items-center gap-2 w-full rounded-lg bg-white shadow-sm p-1 min-h-0 h-9 max-h-9">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-5 w-5 p-0 text-blue-600 hover:bg-blue-100 min-h-0 min-w-0"
-                                  onClick={() => {
-                                    const audio = audioRefs.current[idx];
-                                    if (!audio) return;
-                                    if (audio.paused) {
-                                      audio.play();
-                                    } else {
-                                      audio.pause();
-                                    }
-                                  }}
-                                >
-                                  {audioPlayingIdx === idx ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                                </Button>
-                                <div className="flex-1 flex flex-col gap-1 justify-center min-h-0">
-                                  <input
-                                    type="range"
-                                    min={0}
-                                    max={audioDuration || 1}
-                                    value={audioPlayingIdx === idx ? audioProgress : 0}
-                                    onChange={e => {
-                                      const audio = audioRefs.current[idx];
-                                      if (audio) audio.currentTime = Number(e.target.value);
-                                    }}
-                                    className="w-full accent-blue-500 h-2 min-h-0 mt-3"
-                                    style={{ height: '0.5rem', minHeight: 0 }}
-                                  />
-                                  <div className="flex justify-between text-[10px] text-gray-500 leading-none">
-                                    <span>{formatTime(audioPlayingIdx === idx ? audioProgress : 0)}</span>
-                                    <span>{formatTime(audioDuration)}</span>
-                                  </div>
-                                </div>
-                                <audio
-                                  ref={el => { audioRefs.current[idx] = el; }}
-                                  src={tag}
-                                  preload="metadata"
-                                  style={{ display: 'none' }}
-                                  onPlay={() => {
-                                    setAudioPlayingIdx(idx);
-                                    setPlayingAudioIdx(idx);
-                                  }}
-                                  onPause={() => {
-                                    setAudioPlayingIdx(null);
-                                    setPlayingAudioIdx(null);
-                                  }}
-                                  onEnded={() => {
-                                    setAudioPlayingIdx(null);
-                                    setPlayingAudioIdx(null);
-                                    setAudioProgress(0);
-                                  }}
-                                  onTimeUpdate={e => {
-                                    if (audioPlayingIdx === idx) setAudioProgress(e.currentTarget.currentTime);
-                                  }}
-                                  onLoadedMetadata={e => {
-                                    setAudioDuration(e.currentTarget.duration);
-                                  }}
-                                />
-                              </div>
-                              {audioPlayingIdx === idx && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="flex items-center text-blue-600 font-semibold animate-pulse">
-                                    <Circle className="h-3 w-3 mr-1 fill-blue-600 text-blue-600 animate-pulse" /> Now Playing
-                                  </span>
-                                  <span className="relative flex items-center h-6 w-10">
-                                    {/* Waveform animation */}
-                                    <span className="block h-4 w-1 bg-blue-400 mx-0.5 animate-wave1 rounded-sm" />
-                                    <span className="block h-6 w-1 bg-blue-500 mx-0.5 animate-wave2 rounded-sm" />
-                                    <span className="block h-3 w-1 bg-blue-400 mx-0.5 animate-wave3 rounded-sm" />
-                                    <span className="block h-5 w-1 bg-blue-500 mx-0.5 animate-wave1 rounded-sm" />
-                                    <span className="block h-2 w-1 bg-blue-400 mx-0.5 animate-wave2 rounded-sm" />
-                                  </span>
-                                  <style jsx>{`
-                                    @keyframes wave1 { 0%,100%{height:0.75rem;} 50%{height:1.5rem;} }
-                                    @keyframes wave2 { 0%,100%{height:1.5rem;} 50%{height:0.5rem;} }
-                                    @keyframes wave3 { 0%,100%{height:1rem;} 50%{height:2rem;} }
-                                    .animate-wave1 { animation: wave1 1s infinite; }
-                                    .animate-wave2 { animation: wave2 1s infinite; }
-                                    .animate-wave3 { animation: wave3 1s infinite; }
-                                  `}</style>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className={expanded ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
-                              <Music className="h-4 w-4 mr-1 text-blue-400" />
-                              {isPending
-                                ? pendingName
-                                : (() => {
-                                    const file = tag.split('/').pop() || '';
-                                    const name = file.replace(/\.(webm|mp3|wav)$/i, '').replace(/[^a-zA-Z ]+/g, ' ').replace(/ +/g, ' ').trim();
-                                    return name || 'Audio';
-                                  })()
-                              }
-                              {isPending && <Loader className="h-3 w-3 ml-1 animate-spin text-blue-400" />}
-                            </span>
-                          )
-                        ) : (
-                          expanded ? (
-                            <span className="flex items-center gap-2 text-gray-700 font-medium mb-1">
-                              {/* No icon in expanded view */}
-                              <span className="break-words whitespace-normal w-full max-w-full">{tag}</span>
-                            </span>
-                          ) : (
-                            <span className={expanded ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
-                              <FileText className="h-4 w-4 mr-1 text-gray-400" />
-                              {tag}
-                            </span>
-                          )
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                    
-                      </div>
+                      {/* Show media for expanded audio/image tags */}
+                      {isAudioTag && (
+                        <audio controls src={tag.startsWith('http') ? tag : tag.startsWith('/audios/') ? tag : '/audios/' + tag} className="w-full mt-2" />
+                      )}
+                      {isImageTag && (
+                        <img
+                          src={tag}
+                          alt="tag-img"
+                          className="w-full max-h-48 object-contain mt-2 rounded cursor-pointer"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setModalImageUrl(tag);
+                            setIsImageModalOpen(true);
+                          }}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

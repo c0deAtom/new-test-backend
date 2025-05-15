@@ -328,18 +328,16 @@ export function NotePage({
                 onBlur={() => handleNoteUpdate(note.id, note.content, note.tags.map(t => t.name))}
                 onTagSelection={(tagIndex: number, isSelected: boolean) => {
                   setSelectedTags(prev => {
+                    let newList;
                     if (isSelected) {
-                      const newTags = [...prev, { noteId: note.id, tagIndex }];
-                      return newTags
-                        .filter((tag, i, arr) =>
-                          arr.findIndex(t => t.noteId === tag.noteId && t.tagIndex === tag.tagIndex) === i
-                        )
-                        .sort((a, b) =>
-                          a.noteId.localeCompare(b.noteId) || a.tagIndex - b.tagIndex
-                        );
+                      // Always remove if present, then add to end
+                      const filtered = prev.filter(tag => !(tag.noteId === note.id && tag.tagIndex === tagIndex));
+                      newList = [...filtered, { noteId: note.id, tagIndex }];
                     } else {
-                      return prev.filter(tag => !(tag.noteId === note.id && tag.tagIndex === tagIndex));
+                      newList = prev.filter(tag => !(tag.noteId === note.id && tag.tagIndex === tagIndex));
                     }
+                    console.log('selectedTags:', newList);
+                    return newList;
                   });
                 }}
                 selectAllTags={() => selectAllTagsForNote(note)}
@@ -386,14 +384,9 @@ export function NotePage({
           onTagSelection={(tagIndex: number, isSelected: boolean) => {
             setSelectedTags(prev => {
               if (isSelected) {
-                const newTags = [...prev, { noteId: fullscreenNoteId, tagIndex }];
-                return newTags
-                  .filter((tag, i, arr) =>
-                    arr.findIndex(t => t.noteId === tag.noteId && t.tagIndex === tag.tagIndex) === i
-                  )
-                  .sort((a, b) =>
-                    a.noteId.localeCompare(b.noteId) || a.tagIndex - b.tagIndex
-                  );
+                // Always remove if present, then add to end
+                const filtered = prev.filter(tag => !(tag.noteId === fullscreenNoteId && tag.tagIndex === tagIndex));
+                return [...filtered, { noteId: fullscreenNoteId, tagIndex }];
               } else {
                 return prev.filter(tag => !(tag.noteId === fullscreenNoteId && tag.tagIndex === tagIndex));
               }

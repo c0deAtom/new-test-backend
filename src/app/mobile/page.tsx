@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, Plus, X, Volume2, Square, Pause, Play, Settings, Loader, ChevronLeft, ChevronRight } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -19,19 +19,271 @@ interface Note {
   tags: { name: string }[];
 }
 
+// --- Speak a single tag (audio, text, or image) ---
+async function speakTag(
+  tag: { noteId: string; tagIndex: number },
+  notes: Note[],
+  onStart: (audio: HTMLAudioElement | null) => void,
+  onEnd: () => void,
+  playbackId?: number,
+  playbackIdRef?: React.MutableRefObject<number>
+) {
+  console.log('speakTag called for tag:', tag);
+  const note = notes.find((n: Note) => n.id === tag.noteId);
+  if (!note) { onEnd(); return; }
+  const tagValue = note.tags[tag.tagIndex]?.name || '';
+  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue);
+  const isAudio = /\.(webm|mp3|wav|m4a|ogg|aac)$/i.test(tagValue) || /^https?:\/\/.+\.(webm|mp3|wav|m4a|ogg|aac)$/i.test(tagValue);
+  if (isImage) { onEnd(); return; }
+  if (isAudio) {
+    const isFullUrl = tagValue.startsWith('http');
+    const isAudioPath = tagValue.startsWith('/audios/');
+    const audioSrc = isFullUrl
+      ? tagValue
+      : isAudioPath
+        ? tagValue
+        : '/audios/' + tagValue;
+    const audio = new Audio(audioSrc);
+    if (typeof playbackId !== 'undefined' && playbackIdRef && playbackId !== playbackIdRef.current) return;
+    onStart(audio);
+    audio.onended = onEnd;
+    audio.onerror = onEnd;
+    audio.play();
+    return;
+  }
+  // Text: TTS
+  try {
+    const isHindi = /[\u0900-\u097F]/.test(tagValue);
+    const res = await fetch('/api/elevenlabs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: tagValue, voiceId: isHindi ? '21m00Tcm4TlvDq8ikWAM' : undefined }),
+    });
+    if (!res.ok) throw new Error('TTS failed');
+    const audioBlob = await res.blob();
+    const url = URL.createObjectURL(audioBlob);
+    const audio = new Audio(url);
+    if (typeof playbackId !== 'undefined' && playbackIdRef && playbackId !== playbackIdRef.current) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    onStart(audio);
+    audio.onended = () => { URL.revokeObjectURL(url); onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); onEnd(); };
+    audio.play();
+  } catch { onEnd(); }
+}
+
+// --- Custom hook to control tag speaking flow ---
+function useSpeakSelectedTagsFlow(
+  selectedTags: { noteId: string; tagIndex: number }[],
+  notes: Note[],
+  isPlaying: boolean,
+  setIsPlaying: (v: boolean) => void,
+  setCurrentAudio: (audio: HTMLAudioElement | null) => void,
+  setCurrentPlayingTag: (tag: { noteId: string; tagIndex: number } | null) => void
+) {
+  const stopRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isSpeakingRef = useRef(false);
+
+  // Always point to latest selectedTags and notes
+  const selectedTagsRef = useRef(selectedTags);
+  const notesRef = useRef(notes);
+  useEffect(() => { selectedTagsRef.current = selectedTags; }, [selectedTags]);
+  useEffect(() => { notesRef.current = notes; }, [notes]);
+
+  // Track played tags
+  const playedTagsRef = useRef<{ noteId: string; tagIndex: number }[]>([]);
+
+  const stop = useCallback(() => {
+    stopRef.current = true;
+    setIsPlaying(false);
+    setCurrentAudio(null);
+    setCurrentPlayingTag(null);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    playedTagsRef.current = [];
+    isSpeakingRef.current = false;
+  }, [setIsPlaying, setCurrentAudio, setCurrentPlayingTag]);
+
+  function playFromFirstUnplayed() {
+    if (isSpeakingRef.current) return;
+    stopRef.current = false;
+    const tags = selectedTagsRef.current;
+    const played = playedTagsRef.current;
+    const nextIndex = tags.findIndex(
+      tag => !played.some(pt => pt.noteId === tag.noteId && pt.tagIndex === tag.tagIndex)
+    );
+    if (nextIndex === -1) {
+      stop();
+      return;
+    }
+    next(nextIndex);
+  }
+
+  // Track current playing tag in a ref for navigation
+  const currentPlayingTagRef = useRef<{ noteId: string; tagIndex: number } | null>(null);
+  useEffect(() => { currentPlayingTagRef.current = null; }, [selectedTags]);
+
+  // Track if navigation is manual
+  const manualNavigationRef = useRef(false);
+
+  // Add a playback session id to prevent race conditions
+  const playbackIdRef = useRef(0);
+
+  function next(idx: number) {
+    const tags = selectedTagsRef.current;
+    const notesList = notesRef.current;
+    if (stopRef.current || idx >= tags.length) {
+      stop();
+      return;
+    }
+    // Always stop any current audio before starting new
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    isSpeakingRef.current = false; // Reset before starting new
+    isSpeakingRef.current = true;
+    setCurrentPlayingTag(tags[idx]);
+    currentPlayingTagRef.current = tags[idx];
+    playbackIdRef.current += 1; // Increment playback session
+    const thisPlaybackId = playbackIdRef.current;
+    const tag = tags[idx];
+    speakTag(tag, notesList, (audio: HTMLAudioElement | null) => {
+      if (thisPlaybackId !== playbackIdRef.current) return;
+      audioRef.current = audio;
+      setCurrentAudio(audio);
+    }, () => {
+      if (thisPlaybackId !== playbackIdRef.current) return;
+      // Only add to playedTagsRef if still in selectedTags
+      const currentTags = selectedTagsRef.current;
+      if (currentTags.some(t => t.noteId === tag.noteId && t.tagIndex === tag.tagIndex)) {
+        playedTagsRef.current.push({ noteId: tag.noteId, tagIndex: tag.tagIndex });
+      }
+      // Remove any played tags that are no longer in selectedTags
+      playedTagsRef.current = playedTagsRef.current.filter(
+        pt => currentTags.some(tag => tag.noteId === pt.noteId && tag.tagIndex === pt.tagIndex)
+      );
+      isSpeakingRef.current = false;
+      if (manualNavigationRef.current) {
+        manualNavigationRef.current = false;
+        playFromFirstUnplayed();
+        return;
+      }
+      playFromFirstUnplayed();
+    }, thisPlaybackId, playbackIdRef);
+  }
+
+  const start = useCallback(() => {
+    playedTagsRef.current = [];
+    if (!selectedTagsRef.current.length) return;
+    playFromFirstUnplayed();
+    setIsPlaying(true);
+  }, [setIsPlaying]);
+
+  const update = useCallback(() => {
+    if (!isPlaying || stopRef.current) return;
+    if (isSpeakingRef.current) return;
+    // Remove played tags that are no longer in the selectedTags array
+    const tags = selectedTagsRef.current;
+    playedTagsRef.current = playedTagsRef.current.filter(
+      pt => tags.some(tag => tag.noteId === pt.noteId && tag.tagIndex === pt.tagIndex)
+    );
+    // If all tags have been played, stop
+    const played = playedTagsRef.current;
+    const nextIndex = tags.findIndex(
+      tag => !played.some(pt => pt.noteId === tag.noteId && pt.tagIndex === tag.tagIndex)
+    );
+    if (nextIndex === -1) {
+      stop();
+      return;
+    }
+    // Otherwise, do nothing: current tag will finish, then playFromFirstUnplayed will resume
+  }, [isPlaying, stop]);
+
+  const pause = useCallback(() => {
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [setIsPlaying]);
+
+  const resume = useCallback(() => {
+    setIsPlaying(true);
+    if (audioRef.current) {
+      audioRef.current.play();
+    }
+  }, [setIsPlaying]);
+
+  useEffect(() => {
+    // Remove played tags that are no longer in selectedTags
+    playedTagsRef.current = playedTagsRef.current.filter(
+      pt => selectedTags.some(tag => tag.noteId === pt.noteId && tag.tagIndex === pt.tagIndex)
+    );
+  }, [selectedTags]);
+
+  // Helper to get current tag index
+  function getCurrentTagIndex() {
+    const tags = selectedTagsRef.current;
+    const currentTag = currentPlayingTagRef.current;
+    if (!tags.length || !currentTag) return -1;
+    return tags.findIndex(
+      tag => tag.noteId === currentTag.noteId && tag.tagIndex === currentTag.tagIndex
+    );
+  }
+
+  // Play next tag
+  const playNextTag = useCallback(() => {
+    const tags = selectedTagsRef.current;
+    let idx = getCurrentTagIndex();
+    if (idx === -1 && tags.length > 0) idx = 0; // fallback to first tag if not found
+    if (isSpeakingRef.current && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      isSpeakingRef.current = false;
+    }
+    if (idx >= 0 && idx < tags.length - 1) {
+      manualNavigationRef.current = true;
+      next(idx + 1);
+      setIsPlaying(true);
+    }
+  }, []);
+
+  // Play previous tag
+  const playPreviousTag = useCallback(() => {
+    const tags = selectedTagsRef.current;
+    let idx = getCurrentTagIndex();
+    if (idx === -1 && tags.length > 0) idx = tags.length - 1; // fallback to last tag if not found
+    if (isSpeakingRef.current && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      isSpeakingRef.current = false;
+    }
+    if (idx > 0) {
+      manualNavigationRef.current = true;
+      next(idx - 1);
+      setIsPlaying(true);
+    }
+  }, []);
+
+  return { start, stop, update, pause, resume, playNextTag, playPreviousTag };
+}
+
 export default function MobilePage() {
   // --- StudentPage state lifted up ---
   const [notes, setNotes] = useState<Note[]>([]);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const [selectedTags, setSelectedTags] = useState<{ noteId: string; tagIndex: number }[]>([]);
-  const [currentPlayingTag, setCurrentPlayingTag] = useState<{ noteId: string; tagIndex: number } | null>(null);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [tagRepeatCount, setTagRepeatCount] = useState(1);
   const [sequenceRepeatCount, setSequenceRepeatCount] = useState(1);
   const [currentTagRepeat, setCurrentTagRepeat] = useState(1);
   const [currentSequence, setCurrentSequence] = useState(1);
-  const [currentPlayingTagIndex, setCurrentPlayingTagIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -44,6 +296,7 @@ export default function MobilePage() {
   const [openNotesSort, setOpenNotesSort] = useState<'icon' | 'list' | 'big' | null>(null);
   const [openRoutineSort, setOpenRoutineSort] = useState<'icon' | 'list' | 'big' | null>(null);
   const [pageAnimDirection, setPageAnimDirection] = useState<'left' | 'right'>('right');
+  const [currentPlayingTag, setCurrentPlayingTag] = useState<{ noteId: string; tagIndex: number } | null>(null);
 
   // Move fetchHabits here so it's accessible everywhere
   const fetchHabits = async () => {
@@ -121,102 +374,25 @@ export default function MobilePage() {
     }
   };
 
+  const flow = useSpeakSelectedTagsFlow(selectedTags, notes, isPlaying, setIsPlaying, setCurrentAudio, setCurrentPlayingTag);
+
   const handlePlayAll = () => {
-    if (selectedTags.length === 0) return;
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = '';
-      setCurrentAudio(null);
-    }
-    setIsPlaying(true);
-    setCurrentTagRepeat(1);
-    setCurrentSequence(1);
-    // Play the first selected tag across all notes
-    const firstTag = selectedTags[0];
-    setCurrentPlayingTag(null);
-    setTimeout(() => setCurrentPlayingTag(firstTag), 0);
+    flow.start();
   };
   const handlePauseAll = () => {
-    if (currentAudio) currentAudio.pause();
-    setIsPlaying(false);
+    flow.pause();
   };
   const handleResumeAll = () => {
-    if (!currentPlayingTag) return;
-    if (currentAudio) {
-      currentAudio.play();
-      setIsPlaying(true);
-    } else {
-      const currentTag = { ...currentPlayingTag };
-      setCurrentPlayingTag(null);
-      setTimeout(() => setCurrentPlayingTag(currentTag), 0);
-      setIsPlaying(true);
-    }
+    flow.resume();
   };
   const handleStopAll = () => {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = '';
-      setCurrentAudio(null);
-    }
-    setIsPlaying(false);
-    setCurrentPlayingTag(null);
-    setCurrentTagRepeat(1);
-    setCurrentSequence(1);
+    flow.stop();
   };
 
-  // Robust repeat/sequence play logic
-  const handleTagFinished = () => {
-    if (!isPlaying || currentPlayingTag == null) return;
-    // Find the index of the current tag in the flat selectedTags array
-    const currentIndex = selectedTags.findIndex(
-      tag => tag.noteId === currentPlayingTag.noteId && tag.tagIndex === currentPlayingTag.tagIndex
-    );
-
-    // If we haven't reached the repeat count for current tag
-    if (currentTagRepeat < tagRepeatCount) {
-      setCurrentTagRepeat(prev => prev + 1);
-      // Force a re-render of the current tag to restart audio
-      setCurrentPlayingTag({ ...currentPlayingTag });
-      setCurrentPlayingTagIndex(currentPlayingTag.tagIndex);
-      return;
-    }
-
-    // Reset tag repeat counter for next tag
-    setCurrentTagRepeat(1);
-
-    // If there are more tags in the flat selectedTags array
-    if (currentIndex < selectedTags.length - 1) {
-      const nextTag = selectedTags[currentIndex + 1];
-      setCurrentPlayingTag(nextTag);
-      setCurrentPlayingTagIndex(nextTag.tagIndex);
-      return;
-    }
-
-    // If we've finished all tags in the sequence
-    if (currentSequence < sequenceRepeatCount) {
-      setCurrentSequence(prev => prev + 1);
-      // Start again from the first tag
-      const firstTag = selectedTags[0];
-      setCurrentPlayingTag(firstTag);
-      setCurrentPlayingTagIndex(firstTag.tagIndex);
-      setCurrentTagRepeat(1);
-      return;
-    }
-
-    // If all sequences are done, stop
-    handleStopAll();
-  };
-
-  // Robust Select All/Deselect All for all notes
-  const handleSelectAll = (noteId: string, tags: string[]) => {
-    setSelectedTags(
-      tags.map((_, idx) => ({ noteId, tagIndex: idx }))
-    );
-  };
-
-  const handleDeselectAll = (noteId: string, tags: string[]) => {
-    setSelectedTags(prev => prev.filter(tag => tag.noteId !== noteId));
-  };
+  // On selectedTags change, update the flow
+  useEffect(() => {
+    flow.update();
+  }, [selectedTags]);
 
   // --- End StudentPage state/handlers ---
 
@@ -224,7 +400,17 @@ export default function MobilePage() {
   const [activeTab, setActiveTab] = useState<'notes' | 'routine' | 'teacher'>('notes');
 
   const selectAllTagsForNote = (note: Note) => {
-    setSelectedTags(note.tags.map((_, idx) => ({ noteId: note.id, tagIndex: idx })));
+    setSelectedTags(prev => {
+      // Remove any tags for this note, then add all tags for this note
+      const filtered = prev.filter(tag => tag.noteId !== note.id);
+      const newTags = note.tags.map((_, idx) => ({ noteId: note.id, tagIndex: idx }));
+      // Avoid duplicates
+      const combined = [...filtered, ...newTags];
+      // Remove any accidental duplicates (by value)
+      return combined.filter((tag, idx, arr) =>
+        arr.findIndex(t => t.noteId === tag.noteId && t.tagIndex === tag.tagIndex) === idx
+      );
+    });
   };
 
   const deselectAllTagsForNote = (note: Note) => {
@@ -332,30 +518,8 @@ export default function MobilePage() {
                   variant="ghost"
                   size="icon"
                  className="h-9 w-9 text-white bg-gray-500 hover:bg-gray-200"
-                  onClick={() => {
-                    if (!currentPlayingTag || selectedTags.length === 0) return;
-                    if (currentAudio) {
-                      currentAudio.pause();
-                      currentAudio.currentTime = 0;
-                    }
-                    const idx = selectedTags.findIndex(
-                      t => t.noteId === currentPlayingTag.noteId && t.tagIndex === currentPlayingTag.tagIndex
-                    );
-                    let prev = null;
-                    for (let i = idx - 1; i >= 0; i--) {
-                      const tag = selectedTags[i];
-                      const note = notes.find(n => n.id === tag.noteId);
-                      if (!note) continue;
-                      const tagValue = note.tags[tag.tagIndex]?.name || '';
-                      const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue);
-                      if (!isImage) {
-                        prev = tag;
-                        break;
-                      }
-                    }
-                    if (prev) setCurrentPlayingTag(prev);
-                  }}
-                  disabled={!currentPlayingTag || selectedTags.length === 0 || selectedTags.findIndex(t => t.noteId === currentPlayingTag?.noteId && t.tagIndex === currentPlayingTag?.tagIndex) <= 0}
+                  onClick={() => flow.playPreviousTag()}
+                  disabled={!currentAudio}
                   title="Previous Tag"
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -367,47 +531,30 @@ export default function MobilePage() {
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-white bg-gray-500 hover:bg-gray-200"
-                  onClick={() => {
-                    if (!currentPlayingTag || selectedTags.length === 0) return;
-                    if (currentAudio) {
-                      currentAudio.pause();
-                      currentAudio.currentTime = 0;
-                    }
-                    const idx = selectedTags.findIndex(
-                      t => t.noteId === currentPlayingTag.noteId && t.tagIndex === currentPlayingTag.tagIndex
-                    );
-                    let next = null;
-                    for (let i = idx + 1; i < selectedTags.length; i++) {
-                      const tag = selectedTags[i];
-                      const note = notes.find(n => n.id === tag.noteId);
-                      if (!note) continue;
-                      const tagValue = note.tags[tag.tagIndex]?.name || '';
-                      const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue);
-                      if (!isImage) {
-                        next = tag;
-                        break;
-                      }
-                    }
-                    if (next) setCurrentPlayingTag(next);
-                  }}
-                  disabled={!currentPlayingTag || selectedTags.length === 0 || selectedTags.findIndex(t => t.noteId === currentPlayingTag?.noteId && t.tagIndex === currentPlayingTag?.tagIndex) === selectedTags.length - 1}
+                  onClick={() => flow.playNextTag()}
+                  disabled={!currentAudio}
                   title="Next Tag"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </Button>     </motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
-                  {currentPlayingTag ? (
-                    <Button onClick={isPlaying ? handlePauseAll : handleResumeAll} className={`w-9 h-9 p-0 ${isPlaying ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
-                      {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                    </Button>
-                  ) : (
-                    <Button onClick={handlePlayAll} className="w-9 h-9 p-0 bg-green-600 hover:bg-green-700 text-white" disabled={selectedTags.length === 0}>
-                      <Volume2 className="h-5 w-5" />
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => {
+                      if (isPlaying) {
+                        handlePauseAll();
+                      } else if (currentAudio) {
+                        handleResumeAll();
+                      } else {
+                        handlePlayAll();
+                      }
+                    }}
+                    className={`w-9 h-9 p-0 ${isPlaying ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                  >
+                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                  </Button>
                 </motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
-                  <Button onClick={handleStopAll} className="w-9 h-9 p-0 bg-red-600 hover:bg-red-700 text-white" disabled={!currentPlayingTag}>
+                  <Button onClick={handleStopAll} className="w-9 h-9 p-0 bg-red-600 hover:bg-red-700 text-white" disabled={!currentAudio}>
                     <Square className="h-5 w-5" />
                   </Button>
                 </motion.div>
@@ -550,7 +697,7 @@ export default function MobilePage() {
             selectAllTagsForNote={selectAllTagsForNote}
             deselectAllTagsForNote={deselectAllTagsForNote}
             setCurrentAudio={setCurrentAudio}
-            handleTagFinished={handleTagFinished}
+            handleTagFinished={() => {}}
           />
         )}
         {activeTab === 'routine' && (
