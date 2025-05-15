@@ -1,7 +1,7 @@
 import { MobileStickyNoteCard } from '@/components/MobileStickyNoteCard';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import React from 'react';
 import { toast } from "sonner";
 import { FullScreenNoteCard } from "./FullScreenNoteCard";
@@ -18,6 +18,7 @@ interface NotePageProps {
   isPlaying: boolean;
   handleStopAll: () => void;
   currentPlayingTag: { noteId: string; tagIndex: number } | null;
+  setCurrentPlayingTag: React.Dispatch<React.SetStateAction<{ noteId: string; tagIndex: number } | null>>;
   selectedTags: { noteId: string; tagIndex: number }[];
   setSelectedTags: React.Dispatch<React.SetStateAction<{ noteId: string; tagIndex: number }[]>>;
   notesView: 'icon' | 'list' | 'big';
@@ -38,6 +39,7 @@ export function NotePage({
   isPlaying,
   handleStopAll,
   currentPlayingTag,
+  setCurrentPlayingTag,
   selectedTags,
   setSelectedTags,
   notesView,
@@ -313,7 +315,7 @@ export function NotePage({
           <div className={
             notesView === 'big'
               ? 'w-full grid grid-cols-1 gap-3'
-              : 'w-full grid grid-cols-2 gap-3'
+              : 'w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3'
           }>
             {sortedNotes.map((note, index) => (
               <MobileStickyNoteCard

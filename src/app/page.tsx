@@ -1,8 +1,7 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import StudentPage from "./student/page";
-import HabitsPage from "./habits/page";
+
 import { AIChatBox } from "@/components/AIChatBox";
 
 export default function Home() {
@@ -15,10 +14,10 @@ export default function Home() {
             <TabsTrigger value="habits">Routine</TabsTrigger>
           </TabsList>
           <TabsContent value="student" className="mt-4">
-            <StudentPage />
+            
           </TabsContent>
           <TabsContent value="habits" className="mt-4">
-            <HabitsPage />
+           
           </TabsContent>
         </Tabs>
       </div>

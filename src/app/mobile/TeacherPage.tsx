@@ -1,5 +1,11 @@
+'use client';
+
 import Teacher from '@/components/Teacher';
 
-export default function TeacherPage() {
-  return <Teacher />;
+interface TeacherPageProps {
+  setRefetchTrigger: React.Dispatch<React.SetStateAction<number>>;
+}
+
+export default function TeacherPage({ setRefetchTrigger }: TeacherPageProps) {
+  return <Teacher setRefetchTrigger={setRefetchTrigger} />;
 } 

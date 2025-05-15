@@ -255,7 +255,7 @@ export default function MobilePage() {
   const pageNames = [
     { key: 'notes', label: 'Notes' },
     { key: 'routine', label: 'Routine' },
-    { key: 'teacher', label: 'Teacher' },
+    { key: 'teacher', label: 'Learn' },
   ];
   const currentPageIdx = pageNames.findIndex(p => p.key === activeTab);
   const handleSwitchPage = (dir: 'left' | 'right') => {
@@ -327,6 +327,75 @@ export default function MobilePage() {
                   </Button>
                 </motion.div>
                 <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                     {/* Tag navigation buttons */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                 className="h-9 w-9 text-white bg-gray-500 hover:bg-gray-200"
+                  onClick={() => {
+                    if (!currentPlayingTag || selectedTags.length === 0) return;
+                    if (currentAudio) {
+                      currentAudio.pause();
+                      currentAudio.currentTime = 0;
+                    }
+                    const idx = selectedTags.findIndex(
+                      t => t.noteId === currentPlayingTag.noteId && t.tagIndex === currentPlayingTag.tagIndex
+                    );
+                    let prev = null;
+                    for (let i = idx - 1; i >= 0; i--) {
+                      const tag = selectedTags[i];
+                      const note = notes.find(n => n.id === tag.noteId);
+                      if (!note) continue;
+                      const tagValue = note.tags[tag.tagIndex]?.name || '';
+                      const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue);
+                      if (!isImage) {
+                        prev = tag;
+                        break;
+                      }
+                    }
+                    if (prev) setCurrentPlayingTag(prev);
+                  }}
+                  disabled={!currentPlayingTag || selectedTags.length === 0 || selectedTags.findIndex(t => t.noteId === currentPlayingTag?.noteId && t.tagIndex === currentPlayingTag?.tagIndex) <= 0}
+                  title="Previous Tag"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+             
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-white bg-gray-500 hover:bg-gray-200"
+                  onClick={() => {
+                    if (!currentPlayingTag || selectedTags.length === 0) return;
+                    if (currentAudio) {
+                      currentAudio.pause();
+                      currentAudio.currentTime = 0;
+                    }
+                    const idx = selectedTags.findIndex(
+                      t => t.noteId === currentPlayingTag.noteId && t.tagIndex === currentPlayingTag.tagIndex
+                    );
+                    let next = null;
+                    for (let i = idx + 1; i < selectedTags.length; i++) {
+                      const tag = selectedTags[i];
+                      const note = notes.find(n => n.id === tag.noteId);
+                      if (!note) continue;
+                      const tagValue = note.tags[tag.tagIndex]?.name || '';
+                      const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagValue);
+                      if (!isImage) {
+                        next = tag;
+                        break;
+                      }
+                    }
+                    if (next) setCurrentPlayingTag(next);
+                  }}
+                  disabled={!currentPlayingTag || selectedTags.length === 0 || selectedTags.findIndex(t => t.noteId === currentPlayingTag?.noteId && t.tagIndex === currentPlayingTag?.tagIndex) === selectedTags.length - 1}
+                  title="Next Tag"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>     </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
                   {currentPlayingTag ? (
                     <Button onClick={isPlaying ? handlePauseAll : handleResumeAll} className={`w-9 h-9 p-0 ${isPlaying ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
                       {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
@@ -381,6 +450,7 @@ export default function MobilePage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </motion.div>
+            
               </motion.div>
             )}
             {activeTab === 'routine' && (
@@ -452,7 +522,7 @@ export default function MobilePage() {
               }}
             >
               <Menu className="h-5 w-5" />
-              Teacher
+              AI
             </Button>
             <div className="flex-1" />
           </div>
@@ -468,6 +538,7 @@ export default function MobilePage() {
             isPlaying={isPlaying}
             handleStopAll={handleStopAll}
             currentPlayingTag={currentPlayingTag}
+            setCurrentPlayingTag={setCurrentPlayingTag}
             selectedTags={selectedTags}
             setSelectedTags={setSelectedTags}
             notesView={notesView}
@@ -496,7 +567,7 @@ export default function MobilePage() {
             fetchHabits={fetchHabits}
           />
         )}
-        {activeTab === 'teacher' && <TeacherPage />}
+        {activeTab === 'teacher' && <TeacherPage setRefetchTrigger={setRefetchTrigger} />}
       </main>
     </div>
   );

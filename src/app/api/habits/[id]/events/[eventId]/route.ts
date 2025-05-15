@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: Request, { params }: { params: { eventId: string } }) {
   try {
-    console.log("yes is")
-    const { id } = await request.json();
-
-    if (!id) {
+    const eventId = params.eventId;
+    if (!eventId) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
-
     const deleted = await prisma.habitEvent.delete({
-      where: { id },
+      where: { id: eventId },
     });
 
     return NextResponse.json({ message: 'Event deleted', deleted });

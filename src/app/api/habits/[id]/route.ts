@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: Request,
-  { params }: any
+  { params }: { params: { id: string } }
 ) {
   try {
     const habit = await prisma.habit.findUnique({

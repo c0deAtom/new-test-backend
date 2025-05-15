@@ -1,6 +1,6 @@
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Pencil, MoreVertical, Trash2, Check, X, Loader, Maximize2, Mic, Image as ImageIcon, Play, Pause, StopCircle, Circle, Music, FileText } from 'lucide-react';
+import { Pencil, MoreVertical, Trash2, Check, X, Loader, Maximize2, Mic, Image as ImageIcon, Play, Pause, StopCircle, Circle, Music, FileText, Waves } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import {
   DropdownMenu,
@@ -101,6 +101,7 @@ export function MobileStickyNoteCard({
   const [audioName, setAudioName] = useState('');
   const tagInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [selectMode, setSelectMode] = useState(false);
+  const [allTagsExpanded, setAllTagsExpanded] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -326,7 +327,7 @@ export function MobileStickyNoteCard({
       className={
         (onClose
           ? 'fixed left-0 top-14 w-[100vw] h-[calc(100vh-56px)] max-w-none max-h-none z-50 bg-yellow-100 rounded-none shadow-none m-0 p-0 flex flex-col pt-3' // fullscreen below navbar with top padding
-          : `mb-4 mt-5 bg-yellow-100 shadow-md rounded-md w-full max-w-md mx-auto aspect-square ` +
+          : `mb-4 mt-5 bg-yellow-100 shadow-md rounded-md w-full sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-7xl mx-auto aspect-square ` +
             (view === 'big' ? 'scale-105 min-h-[400px] h-170 mb-10 ' : '') +
             (view === 'icon' ? 'min-h-67 h-67 w-70 scale-95 ' : '') +
             (view === 'list' ? 'aspect-auto min-h-32 ' : '')
@@ -449,6 +450,19 @@ export function MobileStickyNoteCard({
                       )}
                     </button>
                   )}
+                   {/* Expand/Collapse All Tags Button */}
+        {onClose && (
+          <div className="flex justify-end w-full mb-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 text-xs"
+              onClick={() => setAllTagsExpanded(v => !v)}
+            >
+              {allTagsExpanded ? 'Collapse All' : 'Expand All'}
+            </Button>
+          </div>
+        )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -458,6 +472,7 @@ export function MobileStickyNoteCard({
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
+                  
                   <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-5 w-8 p-0 hover:bg-gray-400" title="More">
@@ -520,6 +535,7 @@ export function MobileStickyNoteCard({
             )}
           </div>
         </div>
+       
         <div className="flex justify-center">
           <div className={`flex flex-col gap-1 border border-gray-800 rounded-md p-1 overflow-y-auto w-full transition-all duration-200  ${
             onClose
@@ -570,24 +586,25 @@ export function MobileStickyNoteCard({
                 isImageTag = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tag) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tag);
                 isAudioTag = tag.endsWith('.webm') || tag.endsWith('.mp3') || tag.endsWith('.wav');
               }
+              // Replace expandedIndex logic with allTagsExpanded
+              const expanded = allTagsExpanded || expandedIndex === idx;
               return (
                 <div
                   key={idx}
                   onClick={e => {
-                    // Only expand/collapse if not clicking inside a custom player UI
                     if ((e.target as HTMLElement).closest('.custom-audio-player')) return;
-                    setExpandedIndex(expandedIndex === idx ? null : idx);
+                    if (!allTagsExpanded) setExpandedIndex(expandedIndex === idx ? null : idx);
                   }}
                   className={
                     `${colorClass} text-gray-800 rounded px-1 py-1 text-sm w-full cursor-pointer transition-all duration-300 ease-in-out ` +
-                    `${expandedIndex === idx ? 'whitespace-normal break-words w-fit' : 'whitespace-nowrap w-full min-w-fit '} ` +
+                    `${expanded ? 'whitespace-normal break-words w-fit' : 'whitespace-nowrap w-full min-w-fit '} ` +
                     `shrink-0 ` +
                     `${isCurrentlyPlaying ? 'ring-2 ring-green-500 animate-pulse bg-gradient-to-r from-green-200 via-blue-200 to-purple-100' : ''} ` +
                     `${isSelected && !isCurrentlyPlaying ? 'ring-2 ring-gray-400' : ''} ` +
                     `${isDeleting ? 'opacity-0 scale-95' : ''} ` +
                     `${isPending ? 'opacity-50' : ''}`
                   }
-                  style={{ wordBreak: expandedIndex === idx ? 'break-word' : undefined }}
+                  style={{ wordBreak: expanded ? 'break-word' : undefined }}
                 >
                   {isEditingTag ? (
                     <div className="flex flex-raw gap-2 w-full " onClick={e => e.stopPropagation()}>
@@ -673,14 +690,35 @@ export function MobileStickyNoteCard({
                         onChange={e => setEditingTagValue(e.target.value)}
                         className="w-full   h-40 bg-transparent border border-gray-200 resize-y text-gray-800 focus:ring-0 focus:outline-none whitespace-pre-wrap break-words overflow-y-auto rounded-sm px-1 "
                         autoFocus
-                        style={{ wordBreak: expandedIndex === idx ? 'break-word' : undefined }}
+                        style={{ wordBreak: expanded ? 'break-word' : undefined }}
                       />
                      
                     </div>
                   ) : (
                     <div className="flex items-top ">
                         <div className='flex flex-col items-center gap-1'>
-                      {(selectMode || expandedIndex === idx) && (
+                      {(selectMode || expanded) && (
+                         isCurrentlyPlaying ? (
+                          <div className=" flex items-center justify-center gap-2 p-1">
+                         
+                            <span className="relative flex items-center h-2 w-4 ">
+                              {/* Waveform animation */}
+                              <span className="block h-1.5 w-0.5 bg-blue-400 mx-0.25 animate-wave1 rounded-sm" />
+                              <span className="block h-2 w-0.5 bg-blue-500 mx-0.25 animate-wave2 rounded-sm" />
+                              <span className="block h-1 w-0.5 bg-blue-400 mx-0.25 animate-wave3 rounded-sm" />
+                              <span className="block h-1.75 w-0.5 bg-blue-500 mx-0.25 animate-wave1 rounded-sm" />
+                              <span className="block h-0.75 w-0.5 bg-blue-400 mx-0.25 animate-wave2 rounded-sm" />
+                            </span>
+                            <style jsx>{`
+                              @keyframes wave1 { 0%,100%{height:0.25rem;} 50%{height:0.5rem;} }
+                              @keyframes wave2 { 0%,100%{height:0.5rem;} 50%{height:0.125rem;} }
+                              @keyframes wave3 { 0%,100%{height:0.375rem;} 50%{height:0.75rem;} }
+                              .animate-wave1 { animation: wave1 1s infinite; }
+                              .animate-wave2 { animation: wave2 1s infinite; }
+                              .animate-wave3 { animation: wave3 1s infinite; }
+                            `}</style>
+                          </div>
+                        ) : (
                         <button
                           className={`p-1 rounded-full ${isSelected ? 'bg-green-500 text-white' : 'bg-blue-200 hover:bg-blue-300'}`}
                           onClick={e => { e.stopPropagation(); if (!isPending) onTagSelection?.(idx, !isSelected); }}
@@ -689,11 +727,13 @@ export function MobileStickyNoteCard({
                           {isDeleting || isPending ? (
                             <Loader className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Check className="h-3 w-3" color='blue' />
-                          )}
-                        </button>
+                           <Check className="h-3 w-3" color='blue' />)
+                           
+                          }
+                        </button>)
                       )}
-                      {expandedIndex === idx && !isDeleting && !isPending && (
+                 
+                      {expanded && !isDeleting && !isPending && (
                         <div className=''>
                           <button
                             className="text-gray-500 hover:text-blue-600"
@@ -705,7 +745,8 @@ export function MobileStickyNoteCard({
                         )}
                         </div>
                       <div className='flex-1 ml-1'>
-                        {expandedIndex === idx && isImageTag ? (
+                        
+                        {expanded && isImageTag ? (
                           <div className="flex flex-col items-start relative">
                              <button  className="absolute  right-[-5] top-[-5] z-10" onClick={e => { e.stopPropagation(); setExpandedIndex(null); }}>
                                 <X className="h-4 w-4"  color='red'/>
@@ -724,7 +765,7 @@ export function MobileStickyNoteCard({
                             />
                           </div>
                         ) : isImageTag ? (
-                          <span className={expandedIndex === idx ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
+                          <span className={expanded ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
                             <ImageIcon className="h-4 w-4 mr-1 text-purple-400" />
                             {isPending
                               ? pendingName
@@ -737,7 +778,7 @@ export function MobileStickyNoteCard({
                             {isPending && <Loader className="h-3 w-3 ml-1 animate-spin text-blue-400" />}
                           </span>
                         ) : isAudioTag ? (
-                          expandedIndex === idx ? (
+                          expanded ? (
                             <div className={`custom-audio-player relative flex flex-col items-start w-full ${playingAudioIdx === idx ? 'ring-2 ring-blue-400 bg-blue-50' : ''}`} onClick={e => e.stopPropagation()}>
                               <button className="absolute right-[-5] top-[-5] z-10" onClick={e => { e.stopPropagation(); setExpandedIndex(null); }}>
                                 <X className="h-4 w-4"  color='red'/>
@@ -832,7 +873,7 @@ export function MobileStickyNoteCard({
                               )}
                             </div>
                           ) : (
-                            <span className={expandedIndex === idx ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
+                            <span className={expanded ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
                               <Music className="h-4 w-4 mr-1 text-blue-400" />
                               {isPending
                                 ? pendingName
@@ -846,13 +887,13 @@ export function MobileStickyNoteCard({
                             </span>
                           )
                         ) : (
-                          expandedIndex === idx ? (
+                          expanded ? (
                             <span className="flex items-center gap-2 text-gray-700 font-medium mb-1">
                               {/* No icon in expanded view */}
                               <span className="break-words whitespace-normal w-full max-w-full">{tag}</span>
                             </span>
                           ) : (
-                            <span className={expandedIndex === idx ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
+                            <span className={expanded ? 'break-words whitespace-normal w-full max-w-full flex items-center' : 'truncate whitespace-nowrap flex items-center'}>
                               <FileText className="h-4 w-4 mr-1 text-gray-400" />
                               {tag}
                             </span>
