@@ -350,12 +350,7 @@ export function MobileRoutineCard({ data, onRefresh, view = 'icon', isProcessing
           </ScrollArea>
         </div>
       </CardContent>
-      <HabitDrawer 
-        isOpen={isDrawerOpen} 
-        setIsOpen={setIsDrawerOpen} 
-        habitData={data} 
-        onHabitUpdated={onRefresh} 
-      />
+     
     </Card>
   );
 }

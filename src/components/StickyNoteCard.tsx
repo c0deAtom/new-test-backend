@@ -111,10 +111,43 @@ export function StickyNoteCard({
     };
   }, []);
 
+  // Play audio file directly for audio tags
+  const playAudioFile = (url: string, tagIndex: number) => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setCurrentAudio(null);
+    setCurrentPlayingIndex(tagIndex);
+    const audio = new Audio(url);
+    setCurrentAudio(audio);
+    audio.onended = () => {
+      setCurrentPlayingIndex(null);
+      setCurrentAudio(null);
+      if (onTagFinished) onTagFinished();
+    };
+    audio.onerror = () => {
+      setCurrentPlayingIndex(null);
+      setCurrentAudio(null);
+      if (onTagFinished) onTagFinished();
+    };
+    audio.play();
+  };
+
   // Handle playing new tag
   useEffect(() => {
     if (isPlayingAll && currentPlayingTag?.noteId === note.id) {
       const tagToPlay = tags[currentPlayingTag.tagIndex];
+      const isImageTag = /^\/uploads\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagToPlay) || /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(tagToPlay);
+      const isAudioTag = tagToPlay.endsWith('.webm') || tagToPlay.endsWith('.mp3') || tagToPlay.endsWith('.wav');
+      if (isImageTag) {
+        if (onTagFinished) onTagFinished();
+        return;
+      }
+      if (isAudioTag) {
+        playAudioFile(tagToPlay, currentPlayingTag.tagIndex);
+        return;
+      }
       if (tagToPlay && currentPlayingTag.tagIndex !== currentPlayingIndex) {
         playTag(tagToPlay, currentPlayingTag.tagIndex);
       }

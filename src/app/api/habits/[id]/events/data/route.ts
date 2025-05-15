@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -24,8 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: { habitId: st
     });
 
     return NextResponse.json(newEvent, { status: 201 });
-  } catch (error) {
-    console.error(error);
+  } catch {
     return NextResponse.json({ message: 'Failed to create HabitEvent' }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 // app/api/habits/route.ts
 
 import { NextResponse, NextRequest } from "next/server";
-import { Prisma, PrismaClient } from "@prisma/client"; // make sure you have prisma setup
+import { PrismaClient } from "@prisma/client"; // make sure you have prisma setup
 
 const prisma = new PrismaClient();
 
@@ -63,10 +63,6 @@ export async function GET() {
     return NextResponse.json({ message: "Failed to fetch habits" }, { status: 500 });
   }
 }
-
-
-
-
 
 export async function DELETE(req: NextRequest) {
   const { id } = await req.json();

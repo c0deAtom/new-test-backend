@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const DEFAULT_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'H6QPv2pQZDcGqLwDTIJQ';
-const HINDI_VOICE_ID = 'H6QPv2pQZDcGqLwDTIJQ'; // Hindi voice ID
 
 export async function POST(request: Request) {
   try {

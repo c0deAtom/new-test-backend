@@ -1,9 +1,7 @@
 import { MobileStickyNoteCard } from '@/components/MobileStickyNoteCard';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader, Plus, Pause, Play, Square, Volume2, Settings, ChevronDown, Maximize2, X as CloseIcon, Check } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import React from 'react';
 import { toast } from "sonner";
 import { FullScreenNoteCard } from "./FullScreenNoteCard";
@@ -17,20 +15,11 @@ export interface Note {
 interface NotePageProps {
   notes: Note[];
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>;
-  isAddingCard: boolean;
-  handleAddCard: () => void;
   isPlaying: boolean;
-  handlePauseAll: () => void;
-  handleResumeAll: () => void;
-  handlePlayAll: () => void;
   handleStopAll: () => void;
   currentPlayingTag: { noteId: string; tagIndex: number } | null;
   selectedTags: { noteId: string; tagIndex: number }[];
   setSelectedTags: React.Dispatch<React.SetStateAction<{ noteId: string; tagIndex: number }[]>>;
-  tagRepeatCount: number;
-  setTagRepeatCount: (n: number) => void;
-  sequenceRepeatCount: number;
-  setSequenceRepeatCount: (n: number) => void;
   notesView: 'icon' | 'list' | 'big';
   setNotesView: (v: 'icon' | 'list' | 'big') => void;
   notesSortBy: 'name' | 'createdAt';
@@ -39,7 +28,6 @@ interface NotePageProps {
   setOpenNotesSort: (v: 'icon' | 'list' | 'big' | null) => void;
   selectAllTagsForNote: (note: Note) => void;
   deselectAllTagsForNote: (note: Note) => void;
-  isLoading: boolean;
   setCurrentAudio: (audio: HTMLAudioElement | null) => void;
   handleTagFinished: () => void;
 }
@@ -47,20 +35,11 @@ interface NotePageProps {
 export function NotePage({
   notes,
   setNotes,
-  isAddingCard,
-  handleAddCard,
   isPlaying,
-  handlePauseAll,
-  handleResumeAll,
-  handlePlayAll,
   handleStopAll,
   currentPlayingTag,
   selectedTags,
   setSelectedTags,
-  tagRepeatCount,
-  setTagRepeatCount,
-  sequenceRepeatCount,
-  setSequenceRepeatCount,
   notesView,
   setNotesView,
   notesSortBy,
@@ -69,7 +48,6 @@ export function NotePage({
   setOpenNotesSort,
   selectAllTagsForNote,
   deselectAllTagsForNote,
-  isLoading,
   setCurrentAudio,
   handleTagFinished,
 }: NotePageProps) {
@@ -266,12 +244,12 @@ export function NotePage({
 
   return (
     <div className="w-full flex flex-col items-center">
-      <div className="w-full flex flex-row items-center justify-end mb-2 px-1 mt-6">
-        <div className="mr-5 flex flex-row gap-0 items-center border border-gray-300 rounded overflow-hidden bg-white">
+      <div className="w-full flex flex-row items-center justify-end mb-2 px-1 mt-6 fixed   z-10">
+        <div className="mr-5  flex flex-row gap-0 items-center border border-gray-300 rounded overflow-hidden bg-gray-300">
           {(['icon', 'list', 'big'] as const).map(type => (
             <div key={type} className="relative">
               <div
-                className={`w-14 h-7 flex items-center justify-center cursor-pointer text-xs border-0 ${notesView === type ? 'bg-yellow-200' : ''}`}
+                className={`w-14 h-7 hover:bg-gray-200 flex items-center justify-center cursor-pointer text-xs border-0 ${notesView === type ? 'bg-yellow-100' : ''}`}
                 onClick={() => setNotesView(type)}
                 onContextMenu={e => { e.preventDefault(); setOpenNotesSort(type); }}
                 onMouseLeave={() => setOpenNotesSort(null)}
@@ -281,16 +259,17 @@ export function NotePage({
               </div>
               {openNotesSort === type && (
                 <div className="absolute right-0 top-8 z-10 bg-white border rounded shadow text-xs w-20">
-                  <div className="px-2 py-1 hover:bg-yellow-100 cursor-pointer" onClick={() => { setNotesSortBy('name'); setOpenNotesSort(null); }}>Sort by Name</div>
-                  <div className="px-2 py-1 hover:bg-yellow-100 cursor-pointer" onClick={() => { setNotesSortBy('createdAt'); setOpenNotesSort(null); }}>Sort by Date</div>
+                  <div className="px-2 py-1 hover:bg-gray-100 cursor-pointer" onClick={() => { setNotesSortBy('name'); setOpenNotesSort(null); }}>Sort by Name</div>
+                  <div className="px-2 py-1 hover:bg-gray-100 cursor-pointer" onClick={() => { setNotesSortBy('createdAt'); setOpenNotesSort(null); }}>Sort by Date</div>
                 </div>
               )}
             </div>
           ))}
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div
-                className="w-14 h-7 flex items-center justify-center cursor-pointer text-xs border-0 bg-white hover:bg-yellow-100"
+                className="w-14 h-7 flex items-center justify-center cursor-pointer text-xs border-0 bg-gray-300 hover:bg-gray-200"
                 style={{ borderLeft: '1px solid #e5e7eb' }}
               >
                 Sort <ChevronDown className="ml-1 w-3 h-3" />
@@ -298,13 +277,13 @@ export function NotePage({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-14 p-0">
               <DropdownMenuItem
-                className={`text-xs ${notesSortBy === 'name' ? 'bg-yellow-100 font-bold' : ''}`}
+                className={`text-xs  ${notesSortBy === 'name' ? 'bg-gray-100 font-bold' : ''}`}
                 onClick={() => setNotesSortBy('name')}
               >
                 Name
               </DropdownMenuItem>
               <DropdownMenuItem
-                className={`text-xs  ${notesSortBy === 'createdAt' ? 'bg-yellow-100 font-bold'  : ''}`}
+                className={`text-xs  ${notesSortBy === 'createdAt' ? 'bg-gray-100 font-bold' : ''}`}
                 onClick={() => setNotesSortBy('createdAt')}
               >
                 Date
@@ -313,9 +292,9 @@ export function NotePage({
           </DropdownMenu>
         </div>
       </div>
-      <div className="p-5 w-full   ">
+      <div className="p-5 pt-16 w-full   ">
         {notesView === 'list' ? (
-          <div className="w-full flex flex-col gap-2">
+          <div className="w-full flex flex-col gap-2  ">
             {sortedNotes.map((note) => (
               <Button
                 key={note.id}
@@ -442,7 +421,7 @@ export function NotePage({
             deselectAllTagsForNote(notes.find(n => n.id === fullscreenNoteId)!);
           }}
           onTagEdit={(tagIndex: number, newValue: string) => handleTagEdit(fullscreenNoteId, tagIndex, newValue)}
-          view={notesView}
+          view="big"
           isProcessing={processingNotes[fullscreenNoteId]}
         />
       )}

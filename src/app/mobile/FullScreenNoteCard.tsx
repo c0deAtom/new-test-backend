@@ -1,6 +1,4 @@
 import { MobileStickyNoteCard } from '@/components/MobileStickyNoteCard';
-import { Button } from '@/components/ui/button';
-import { X as CloseIcon } from 'lucide-react';
 import React from 'react';
 
 interface FullScreenNoteCardProps {
@@ -29,8 +27,8 @@ interface FullScreenNoteCardProps {
 
 export function FullScreenNoteCard(props: FullScreenNoteCardProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center w-full h-full p-0">
-      <div className="w-full max-w-3xl flex flex-col items-center justify-center p-0">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center w-full h-auto mt-14 p-0">
+      <div className="w-full max-w-3xl flex flex-col items-center justify-center p-5">
         <MobileStickyNoteCard
           note={props.note}
           index={0}

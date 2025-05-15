@@ -88,3 +88,17 @@ model Tag {
   noteId  String
   note    Note   @relation(fields: [noteId], references: [id])
 }
+
+model Image {
+  id        String   @id @default(uuid())
+  url       String
+  filename  String
+  createdAt DateTime @default(now())
+}
+
+model Audio {
+  id        String   @id @default(uuid())
+  url       String
+  filename  String
+  createdAt DateTime @default(now())
+}

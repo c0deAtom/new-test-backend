@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, Plus, X, Volume2, Square, Pause, Play, Settings, Loader, ChevronDown } from "lucide-react";
-import { MobileStickyNoteCard } from '@/components/MobileStickyNoteCard';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Menu, Plus, X, Volume2, Square, Pause, Play, Settings, Loader, ChevronLeft, ChevronRight } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent } from "@/components/ui/card";
-import { MobileRoutineCard } from '@/components/MobileRoutineCard';
-import AddHabitForm from "@/components/AddHabitForm";
 import { Habit } from "@/lib/types";
 import { NotePage } from './NotePage';
 import { HabitPage } from './HabitPage';
+import TeacherPage from './TeacherPage';
+import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface Note {
   id: string;
@@ -45,6 +43,7 @@ export default function MobilePage() {
   const [notesSortBy, setNotesSortBy] = useState<'name' | 'createdAt'>('name');
   const [openNotesSort, setOpenNotesSort] = useState<'icon' | 'list' | 'big' | null>(null);
   const [openRoutineSort, setOpenRoutineSort] = useState<'icon' | 'list' | 'big' | null>(null);
+  const [pageAnimDirection, setPageAnimDirection] = useState<'left' | 'right'>('right');
 
   // Move fetchHabits here so it's accessible everywhere
   const fetchHabits = async () => {
@@ -194,6 +193,17 @@ export default function MobilePage() {
     }
 
     // If we've finished all tags in the sequence
+    if (currentSequence < sequenceRepeatCount) {
+      setCurrentSequence(prev => prev + 1);
+      // Start again from the first tag
+      const firstTag = selectedTags[0];
+      setCurrentPlayingTag(firstTag);
+      setCurrentPlayingTagIndex(firstTag.tagIndex);
+      setCurrentTagRepeat(1);
+      return;
+    }
+
+    // If all sequences are done, stop
     handleStopAll();
   };
 
@@ -211,7 +221,7 @@ export default function MobilePage() {
   // --- End StudentPage state/handlers ---
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'notes' | 'routine'>('notes');
+  const [activeTab, setActiveTab] = useState<'notes' | 'routine' | 'teacher'>('notes');
 
   const selectAllTagsForNote = (note: Note) => {
     setSelectedTags(note.tags.map((_, idx) => ({ noteId: note.id, tagIndex: idx })));
@@ -241,82 +251,158 @@ export default function MobilePage() {
       .then(data => setUserName(data.name));
   }, []);
 
+  // Add this after the menu button and before the ml-auto div in the header:
+  const pageNames = [
+    { key: 'notes', label: 'Notes' },
+    { key: 'routine', label: 'Routine' },
+    { key: 'teacher', label: 'Teacher' },
+  ];
+  const currentPageIdx = pageNames.findIndex(p => p.key === activeTab);
+  const handleSwitchPage = (dir: 'left' | 'right') => {
+    setPageAnimDirection(dir);
+    let newIdx = dir === 'left' ? currentPageIdx - 1 : currentPageIdx + 1;
+    if (newIdx < 0) newIdx = pageNames.length - 1;
+    if (newIdx >= pageNames.length) newIdx = 0;
+    setActiveTab(pageNames[newIdx].key as typeof activeTab);
+    setDrawerOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex flex-col relative ">
       {/* Top App Bar */}
       <header className="fixed top-0 left-0 right-0 w-full z-20 bg-white/80 backdrop-blur border-b border-gray-200 shadow-sm flex items-center h-14">
-       {!drawerOpen ?  (<Button variant="ghost" size="icon" className="ml-2 mr-2" onClick={() => setDrawerOpen(prev => !prev)}>
+        {!drawerOpen ?  (<Button variant="ghost" size="icon" className="ml-2 mr-2" onClick={() => setDrawerOpen(prev => !prev)}>
           <Menu className="h-8 w-8 size-lg text-gray-700 hover:text-gray-900" />
         </Button>) : (  
         <Button variant="ghost" size="icon" className="ml-2 mr-2"  onClick={() => setDrawerOpen(false)}>
               <X className="h-6 w-6" />
             </Button>
         )}
+        {/* Page Switcher - fixed/absolute center in navbar */}
+        <div className="h-7 w-80 absolute left-44 top-[74] -translate-x-1/2 -translate-y-1/2 z-30 bg-gray-300 flex items-center justify-center gap-9 bg-gray-100 rounded px-3 py-1 shadow-sm">
+          <Button variant="ghost" size="icon" className="h-6 w-7 hover:bg-yellow-100 " onClick={() => handleSwitchPage('left')}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="relative min-w-[70px] flex items-center justify-center h-7 overflow-hidden">
+            <AnimatePresence initial={false} custom={pageAnimDirection}>
+              <motion.span
+                key={pageNames[currentPageIdx].key}
+                initial={{
+                  x: pageAnimDirection === 'right' ? 40 : -40,
+                  opacity: 0
+                }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{
+                  x: pageAnimDirection === 'right' ? -40 : 40,
+                  opacity: 0
+                }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30, duration: 0.3 }}
+                className="absolute left-0 right-0 text-base font-semibold text-center"
+              >
+                {pageNames[currentPageIdx].label}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-7 hover:bg-yellow-100 " onClick={() => handleSwitchPage('right')}>
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+        </div>
         <div className="ml-auto mr-6">
-        {/* Action buttons for Notes tab */}
-        {activeTab === 'notes' && (
-          <div className="flex gap-1 items-center">
-            <Button onClick={handleAddCard} className="w-9 h-9 p-0" disabled={isAddingCard}>
-              {isAddingCard ? <Loader className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-            </Button>
-            {currentPlayingTag ? (
-              <Button onClick={isPlaying ? handlePauseAll : handleResumeAll} className={`w-9 h-9 p-0 ${isPlaying ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
-                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-              </Button>
-            ) : (
-              <Button onClick={handlePlayAll} className="w-9 h-9 p-0 bg-green-600 hover:bg-green-700 text-white" disabled={selectedTags.length === 0}>
-                <Volume2 className="h-5 w-5" />
-              </Button>
+          <AnimatePresence mode="wait" initial={false}>
+            {activeTab === 'notes' && (
+              <motion.div
+                key="notes-actions"
+                className="flex gap-1 items-center"
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                variants={{
+                  hidden: { opacity: 0, x: 40 },
+                  visible: { opacity: 1, x: 0, transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+                }}
+              >
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                  <Button onClick={handleAddCard} className="w-9 h-9 p-0" disabled={isAddingCard}>
+                    {isAddingCard ? <Loader className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+                  </Button>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                  {currentPlayingTag ? (
+                    <Button onClick={isPlaying ? handlePauseAll : handleResumeAll} className={`w-9 h-9 p-0 ${isPlaying ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
+                      {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                    </Button>
+                  ) : (
+                    <Button onClick={handlePlayAll} className="w-9 h-9 p-0 bg-green-600 hover:bg-green-700 text-white" disabled={selectedTags.length === 0}>
+                      <Volume2 className="h-5 w-5" />
+                    </Button>
+                  )}
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                  <Button onClick={handleStopAll} className="w-9 h-9 p-0 bg-red-600 hover:bg-red-700 text-white" disabled={!currentPlayingTag}>
+                    <Square className="h-5 w-5" />
+                  </Button>
+                </motion.div>
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                  <DropdownMenu open={settingsOpen} onOpenChange={setSettingsOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button className="w-9 h-9 p-0 bg-gray-600 hover:bg-gray-400 text-white">
+                        <Settings className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="p-2 space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Each Tag Repeats</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              className="w-20"
+                              value={tagRepeatCount}
+                              onChange={(e) => setTagRepeatCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                            <span className="text-sm text-gray-500">times</span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Sequence Repeats</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              className="w-20"
+                              value={sequenceRepeatCount}
+                              onChange={(e) => setSequenceRepeatCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                            <span className="text-sm text-gray-500">times</span>
+                          </div>
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </motion.div>
+              </motion.div>
             )}
-            <Button onClick={handleStopAll} className="w-9 h-9 p-0 bg-red-600 hover:bg-red-700 text-white" disabled={!currentPlayingTag}>
-              <Square className="h-5 w-5" />
-            </Button>
-            <DropdownMenu open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button className="w-9 h-9 p-0 bg-gray-600 hover:bg-gray-400 text-white">
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="p-2 space-y-3">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Each Tag Repeats</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        className="w-20"
-                        value={tagRepeatCount}
-                        onChange={(e) => setTagRepeatCount(Math.max(1, parseInt(e.target.value) || 1))}
-                      />
-                      <span className="text-sm text-gray-500">times</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Sequence Repeats</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        className="w-20"
-                        value={sequenceRepeatCount}
-                        onChange={(e) => setSequenceRepeatCount(Math.max(1, parseInt(e.target.value) || 1))}
-                      />
-                      <span className="text-sm text-gray-500">times</span>
-                    </div>
-                  </div>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
-        {activeTab === 'routine' && (
-          <div className="flex gap-1 items-center">
-            <Button onClick={() => setShowAddHabitForm(true)} className="w-9 h-9 p-0">
-              <Plus className="h-5 w-5" />
-            </Button>
-          </div>
-        )}
+            {activeTab === 'routine' && (
+              <motion.div
+                key="routine-actions"
+                className="flex gap-1 items-center"
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                variants={{
+                  hidden: { opacity: 0, x: 40 },
+                  visible: { opacity: 1, x: 0, transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+                }}
+              >
+                <motion.div variants={{ hidden: { opacity: 0, x: 40 }, visible: { opacity: 1, x: 0 } }}>
+                  <Button onClick={() => setShowAddHabitForm(true)} className="w-9 h-9 p-0">
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
@@ -357,6 +443,17 @@ export default function MobilePage() {
               <Menu className="h-5 w-5" />
               Routine
             </Button>
+            <Button
+              variant={activeTab === 'teacher' ? 'default' : 'ghost'}
+              className={`justify-start text-base rounded-none w-full flex items-center gap-2 transition-colors ${activeTab === 'teacher' ? 'bg-yellow-100 text-yellow-900' : 'hover:bg-gray-100'}`}
+              onClick={() => {
+                setActiveTab('teacher');
+                setDrawerOpen(false);
+              }}
+            >
+              <Menu className="h-5 w-5" />
+              Teacher
+            </Button>
             <div className="flex-1" />
           </div>
         </aside>
@@ -364,24 +461,15 @@ export default function MobilePage() {
 
       {/* Main Content - Tabbed */}
       <main className="flex-1 flex flex-col items-center justify-top  pt-9">
-        {activeTab === 'notes' ? (
+        {activeTab === 'notes' && (
           <NotePage
             notes={notes}
             setNotes={setNotes}
-            isAddingCard={isAddingCard}
-            handleAddCard={handleAddCard}
             isPlaying={isPlaying}
-            handlePauseAll={handlePauseAll}
-            handleResumeAll={handleResumeAll}
-            handlePlayAll={handlePlayAll}
             handleStopAll={handleStopAll}
             currentPlayingTag={currentPlayingTag}
             selectedTags={selectedTags}
             setSelectedTags={setSelectedTags}
-            tagRepeatCount={tagRepeatCount}
-            setTagRepeatCount={setTagRepeatCount}
-            sequenceRepeatCount={sequenceRepeatCount}
-            setSequenceRepeatCount={setSequenceRepeatCount}
             notesView={notesView}
             setNotesView={setNotesView}
             notesSortBy={notesSortBy}
@@ -390,11 +478,11 @@ export default function MobilePage() {
             setOpenNotesSort={setOpenNotesSort}
             selectAllTagsForNote={selectAllTagsForNote}
             deselectAllTagsForNote={deselectAllTagsForNote}
-            isLoading={isLoading}
             setCurrentAudio={setCurrentAudio}
             handleTagFinished={handleTagFinished}
           />
-        ) : (
+        )}
+        {activeTab === 'routine' && (
           <HabitPage
             habits={habits}
             sortBy={sortBy}
@@ -408,6 +496,7 @@ export default function MobilePage() {
             fetchHabits={fetchHabits}
           />
         )}
+        {activeTab === 'teacher' && <TeacherPage />}
       </main>
     </div>
   );

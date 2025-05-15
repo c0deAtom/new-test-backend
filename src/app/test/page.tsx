@@ -1,84 +1,70 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader } from 'lucide-react';
 
 // Each particle represents a single character flying from the volcano
 type Particle = { id: string; char: string; x: number };
 
-export default function TestPage() {
-  const [inputValue, setInputValue] = useState('');
-  const [particles, setParticles] = useState<Particle[]>([]);
-  const [showVolcano, setShowVolcano] = useState(true);
-  const [removeTriggered, setRemoveTriggered] = useState(false);
+export default function ImageTestPage() {
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Spawn a new particle for the given character
-  const createParticle = (char: string) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const x = (Math.random() - 0.5) * 200; // horizontal spread
-    setParticles((prev) => [...prev, { id, char, x }]);
+  const fetchImages = async () => {
+    setFetching(true);
+    const res = await fetch('/api/images');
+    const data = await res.json();
+    // data.images is an array of { id, url, filename, createdAt }
+    setImages(data.images?.map((img: any) => img.url) || []);
+    setFetching(false);
   };
 
-  // On input change, emit particles when volcano is visible
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    const added = newValue.slice(inputValue.length);
-    if (showVolcano) added.split('').forEach(createParticle);
-    setInputValue(newValue);
+  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/images', {
+      method: 'POST',
+      body: formData,
+    });
+    setUploading(false);
+    if (res.ok) {
+      // Optionally, add the new image to the list optimistically
+      const data = await res.json();
+      if (data.image?.url) setImages(prev => [data.image.url, ...prev]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
-    <div className="p-8 flex flex-col items-center space-y-8">
-      <Button
-        variant="destructive"
-        onClick={() => { setRemoveTriggered(true); setShowVolcano(false); }}
-        disabled={!showVolcano}
-      >
-        Remove Volcano
+    <div className="max-w-md mx-auto py-8">
+      <h1 className="text-xl font-semibold mb-4">Image Upload & Fetch Test</h1>
+      <form onSubmit={handleUpload} className="flex gap-2 items-center mb-6">
+        <input type="file" accept="image/*" ref={fileInputRef} className="border rounded px-2 py-1" />
+        <Button type="submit" disabled={uploading}>
+          {uploading ? <Loader className="animate-spin h-4 w-4" /> : 'Upload'}
+        </Button>
+      </form>
+      <Button variant="outline" onClick={fetchImages} disabled={fetching} className="mb-4">
+        {fetching ? <Loader className="animate-spin h-4 w-4" /> : 'Fetch Images'}
       </Button>
-      {/* Input to type text */}
-      <Input
-        placeholder="Type something..."
-        value={inputValue}
-        onChange={handleChange}
-        className="w-64"
-        disabled={!showVolcano}
-      />
-
-      {/* Volcano container */}
-      <div className="relative w-48 h-32 overflow-visible">
-        {/* Animated character particles */}
-        {particles.map((p) => (
-          <motion.span
-            key={p.id}
-            initial={{ x: 0, y: 0 }}
-            animate={
-              removeTriggered
-                ? { x: p.x, y: '100vh' }
-                : { x: p.x, y: -128 }
-            }
-            transition={
-              removeTriggered
-                ? { duration: 1.5, ease: 'easeIn' }
-                : { duration: 1, ease: 'easeOut' }
-            }
-            onAnimationComplete={() => {
-              if (removeTriggered) setParticles([]);
-            }}
-            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-lg font-bold z-10"
-          >
-            {p.char}
-          </motion.span>
+      <div className="grid grid-cols-2 gap-4">
+        {images.map((url, i) => (
+          <Card key={url + i} className="overflow-hidden">
+            <CardContent className="p-2 flex items-center justify-center">
+              <img src={url} alt="uploaded" className="object-cover max-h-40 w-full rounded" />
+            </CardContent>
+          </Card>
         ))}
-
-        {showVolcano && (
-          <div
-            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-20 bg-gradient-to-t from-red-500 to-orange-400 z-0"
-            style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
-          />
-        )}
       </div>
     </div>
   );

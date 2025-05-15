@@ -3,12 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import HabitCard, { HabitCardSkeleton } from "@/components/HabitCard";
 import { AnimatedHabitCard } from "@/components/AnimatedHabitCard";
 import { Habit } from "@/lib/types";
 import AddHabitForm from "@/components/AddHabitForm";
-import { ButtonIcon } from "@/components/Button";
 
 export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);

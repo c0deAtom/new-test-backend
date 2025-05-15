@@ -1,7 +1,6 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import HabitCard from './HabitCard';
 import { CrossCloseButton } from './Button';
 import { Habit, HabitEvent } from '@/lib/types';
 import { Button } from '@/components/ui/button';

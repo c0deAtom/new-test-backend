@@ -1,9 +1,7 @@
 'use client'
 
-// import { ButtonDownAero, ButtonIcon } from "@/components/Button"; // Removed custom button imports
-import { Pencil, Trash2, Check, X, MoreVertical, Plus } from "lucide-react"; // Added icons
+import { Pencil, Trash2, Check, X, MoreVertical } from "lucide-react"; // Removed unused Plus icon
 import { useState, useEffect, useRef } from "react";
-import EventTable from "./events/Events";
 import { Habit, HabitEvent } from "@/lib/types";
 import { HabitDrawer } from "./HabitDrawer";
 import { clsx } from 'clsx';
@@ -29,23 +27,15 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import React from "react"
 import { motion } from 'framer-motion';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function HabitCardSkeleton() {
@@ -86,7 +76,6 @@ function calculateCombo(events: HabitEvent[]) {
   if (!events || events.length === 0) return null;
 
   const sortedEvents = [...events].sort((a, b) => {
-    // Timestamps are strings, parse them
     const timestampA = new Date(a.timestamp).getTime();
     const timestampB = new Date(b.timestamp).getTime();
     return timestampB - timestampA;
@@ -95,21 +84,17 @@ function calculateCombo(events: HabitEvent[]) {
   let latestType = sortedEvents[0].type;
   let comboCount = 1;
 
-  // Loop through the events to find consecutive occurrences of the same type
   for (let i = 1; i < sortedEvents.length; i++) {
     if (sortedEvents[i].type === latestType) {
-      comboCount++; // Increment the combo count for consecutive same type
+      comboCount++;
     } else {
-      break; // Break the loop if the type changes (streak is broken)
+      break;
     }
   }
 
-  // Determine combo color based on the event type
-  let comboColor = latestType === 'HIT' ? 'green' : 'red'; // Assuming 'HIT' is green and 'SLIP' is red
+  let comboColor = latestType === 'HIT' ? 'green' : 'red';
 
-  // Return JSX element if combo count is 2 or more
   if (comboCount >= 2) {
-    // Ensure comboColor is a valid Tailwind text color class part
     const colorClass = comboColor === 'green' ? 'text-green-700' : 'text-red-700'; 
     return <div className={colorClass}>x{comboCount}</div>;
   }
@@ -122,9 +107,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   onRefresh: () => void;
   onTriggerQuestion?: (habitId: string, type: "HIT" | "SLIP", eventId: string, habitName: string) => void;
 }) {
-  // const [showMenu, setShowMenu] = useState(false) // Replaced by DropdownMenu
-  const [expand, setExpand] = useState(false) // Keep expand state for now
-  const divRef = useRef<HTMLDivElement>(null)
+  const [expand, setExpand] = useState(false);
+  const divRef = useRef<HTMLDivElement>(null);
   const [hitCount, setHitCount] = useState(0);
   const [slipCount, setSlipCount] = useState(0);
 
@@ -132,25 +116,18 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
   const [confirmDeleteEvents, setConfirmDeleteEvents] = useState(false);
   const confirmRef = useRef<HTMLDivElement>(null);
   const isHitDominant = hitCount >= slipCount;
-  const [mess, setMess] = useState("")
-  // const [showConfirm, setShowConfirm] = useState(false); // Replaced by AlertDialog
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // State for edit drawer
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [combo, setCombo] = useState<React.ReactNode>(null);
-  // Inline reflection state
   const [reflectEvent, setReflectEvent] = useState<{ eventId: string; type: 'HIT'|'SLIP' } | null>(null);
   const [reflectionAnswer, setReflectionAnswer] = useState('');
   const [reflectParticles, setReflectParticles] = useState<{ id: string; char: string }[]>([]);
   const [hideReflectInput, setHideReflectInput] = useState(false);
   const [questionParticles, setQuestionParticles] = useState<{ id: string; char: string }[]>([]);
   const [showReflectQuestionText, setShowReflectQuestionText] = useState(false);
-  // Particles for the inline question eruption
-  const [questionRemoveTriggered, setQuestionRemoveTriggered] = useState(false);
   const [isFrozen, setIsFrozen] = useState(false);
 
-  // Local events state for immediate UI updates
   const [localEvents, setLocalEvents] = useState<HabitEvent[]>(data.events || []);
 
-  // Determine inline reflection question based on event type
   const reflectQuestion = reflectEvent
     ? reflectEvent.type === 'HIT'
       ? 'What   went   well   that   led   to        this   success?'
@@ -165,9 +142,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
 
   const handleDeleteSelectedEvents = async () => {
     if (selectedEvents.length === 0) return;
-    // Immediately remove selected events from UI
     setLocalEvents(prev => prev.filter(ev => !selectedEvents.includes(ev.id)));
-    // Clear selection
     setSelectedEvents([]);
     try {
       const res = await fetch('/api/habits/events/delete-multiple', {
@@ -195,7 +170,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     setCombo(comboResult);
   }, [data.events]);
 
-  // Compute numeric combo streak for shading
   const streakCount = React.useMemo(() => {
     if (!data.events || data.events.length === 0) return 0;
     const sorted = [...data.events].sort(
@@ -209,11 +183,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     return count;
   }, [data.events]);
 
-  // Compute dynamic boxShadow based on combo streak
   const dynamicBoxShadow = React.useMemo(() => {
-    // Only apply if there's a streak of at least 2
     if (streakCount < 2 || !data.events?.length) return undefined;
-    // Determine latest event type for shadow color
     const sorted = [...data.events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     const latestType = sorted[0].type;
     const color = latestType === 'HIT' ? '34,197,94' : '239,68,68';
@@ -222,7 +193,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     return `0 0 ${blur}px ${spread}px rgba(${color}, 0.5)`;
   }, [streakCount, data.events]);
 
-  // Detect clicks outside the confirm button group to cancel confirmation
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (confirmDeleteEvents && confirmRef.current && !confirmRef.current.contains(event.target as Node)) {
@@ -233,9 +203,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [confirmDeleteEvents]);
 
-  useEffect (() => { setReflectionAnswer('')}, [reflectEvent])
+  useEffect(() => { setReflectionAnswer('') }, [reflectEvent]);
 
-  // Renamed handleDelete to handleDeleteHabitConfirmed to avoid conflict
   async function handleDeleteHabitConfirmed(habitId: string) {
     try {
       const res = await fetch('/api/habits', {
@@ -255,7 +224,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     }
   }
 
-  // Spawn a particle for each new character in inline reflection
   const createReflectParticle = (char: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
     setReflectParticles(prev => [...prev, { id, char }]);
@@ -276,7 +244,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         body: JSON.stringify({ eventId: reflectEvent.eventId, reflectionNote: reflectionAnswer })
       });
       if (!res.ok) throw new Error('Failed to save reflection');
-      // hide the input field and clear particles
       setHideReflectInput(true);
       setTimeout(() => {
         setReflectParticles([]);
@@ -290,11 +257,8 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     }
   };
 
-  // Modify the event recorder to open inline reflection
   function recordEvent(type: 'HIT' | 'SLIP') {
-    // Prevent triggering multiple reflection questions
     if (reflectEvent) return;
-    // Optimistic UI: add a temporary event
     const tempId = 'temp-' + Date.now();
     const tempEvent: HabitEvent = {
       id: tempId,
@@ -306,13 +270,11 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
       isReversal: false
     };
     setLocalEvents(prev => [tempEvent, ...prev]);
-    // Optimistically update hit/slip count
     if (type === 'HIT') {
       setHitCount(prev => prev + 1);
     } else {
       setSlipCount(prev => prev + 1);
     }
-    // disable buttons while request is in-flight
     setIsFrozen(true);
     fetch(`/api/habits/${data.id}/events`, {
       method: 'POST',
@@ -329,31 +291,24 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         return response.json();
       })
       .then(newEvent => {
-        // Replace temporary event with persisted event
         setLocalEvents(prev => [newEvent, ...prev.filter(ev => ev.id !== tempId)]);
-        // refresh datax
         onRefresh();
-        // Directly set reflectEvent without triggering question
         setReflectEvent({ eventId: newEvent.id, type });
       })
       .catch(error => {
         console.error('Error recording event:', error);
-        // Revert the optimistic update in case of error
         if (type === 'HIT') {
           setHitCount(prev => prev - 1);
         } else {
           setSlipCount(prev => prev - 1);
         }
-        // Remove temporary event on error
         setLocalEvents(prev => prev.filter(ev => ev.id !== tempId));
       })
       .finally(() => {
-        // re-enable buttons
         setIsFrozen(false);
       });
   }
 
-  // Emit question particles on panel open
   const emitQuestionParticles = () => {
     setQuestionParticles([]);
     reflectQuestion.split('').forEach((char: string) => {
@@ -361,7 +316,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     });
   };
 
-  // Emit question particles on panel open
   useEffect(() => {
     if (reflectEvent) {
       emitQuestionParticles();
@@ -370,7 +324,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     }
   }, [reflectEvent, reflectQuestion]);
 
-  // Show static question after animation completes
   useEffect(() => {
     if (reflectEvent) {
       setShowReflectQuestionText(false);
@@ -381,7 +334,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
     }
   }, [reflectEvent, reflectQuestion]);
 
-  // Sync local events when data.events prop changes
   useEffect(() => {
     setLocalEvents(data.events || []);
   }, [data.events]);
@@ -403,8 +355,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
           {data.name}
         </CardTitle>
         <div className="flex items-center space-x-1 text-2xl font-bold">
-          {combo} {/* Display calculated combo */}
-          {/* Edit/Delete Dropdown */} 
+          {combo}
           <div className="no-open">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -429,7 +380,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
                     <span>Edit</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                 {/* Delete Habit Confirmation */} 
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <DropdownMenuItem 
@@ -475,7 +425,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
           {data.microGoal || 'No micro-goal set'}
         </div>
         <div className="no-open flex justify-around items-center pt-4 ">
-          {/* Hit Button */}
           <Button
             variant="outline"
             size="lg"
@@ -483,22 +432,19 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
             onClick={(e) => { e.stopPropagation(); recordEvent('HIT'); }}
             disabled={isFrozen || !!reflectEvent}
           >
-           
             <Check className="mr-2 h-5 w-5" /> Hit ({hitCount})
           </Button>
-<div className="w-4">
-  {isFrozen && (
-    <div className="flex items-center justify-center">
-      <div
-        className={`animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 ${
-          reflectEvent?.type === 'HIT' ? 'border-green-500' : 'border-red-500'
-        }`}
-      ></div>
-    </div>
-  )}
-</div>
-
-          {/* Slip Button */}
+          <div className="w-4">
+            {isFrozen && (
+              <div className="flex items-center justify-center">
+                <div
+                  className={`animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 ${
+                    reflectEvent?.type === 'HIT' ? 'border-green-500' : 'border-red-500'
+                  }`}
+                ></div>
+              </div>
+            )}
+          </div>
           <Button
             variant="outline"
             size="lg"
@@ -511,7 +457,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         </div>
 
       <div className="w-full h-18">
-        {/* Inline reflection input */}
         {reflectEvent && (
           <motion.div
             initial={{ x: 0 }}
@@ -519,11 +464,7 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
             className="relative overflow-visible w-full  rounded  no-open"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Combined particle vault */}
             <div className="relative w-60 h-12 overflow-visible">
-              {/* Reflect input particles */}
-             
-              {/* Question text */}
               <div className="flex flex-wrap justify-center relative z-10">
                 {questionParticles.map((p) => (
                   <motion.span
@@ -556,7 +497,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
                     className="px-1 py-1 text-xs font-medium w-9 text-blue-600 border-blue-600 hover:bg-blue-50 hover:text-blue-700"
                     onClick={() => {
                       handleReflectSubmit();
-                      // Clear the textarea after submit
                     }}
                   >
                     OK
@@ -619,7 +559,6 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
         </div>
         
         <div className="relative">
-         
             <ScrollArea className="h-28">
               <div className="space-y-0.5">
                 {localEvents
@@ -664,18 +603,10 @@ export default function HabitCard({ data, onRefresh, onTriggerQuestion }: {
                 )}
               </div>
             </ScrollArea>
-         
-         
         </div>
       </CardContent>
 
-      {/* Edit Drawer */}
-       <HabitDrawer 
-        isOpen={isDrawerOpen} 
-        setIsOpen={setIsDrawerOpen} 
-        habitData={data} 
-        onHabitUpdated={onRefresh} 
-      />
+     
     </Card>
   );
 }

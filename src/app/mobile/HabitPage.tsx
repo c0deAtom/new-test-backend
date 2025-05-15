@@ -1,6 +1,6 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronDown, Loader, X as CloseIcon } from "lucide-react";
+import { ChevronDown, X as CloseIcon } from "lucide-react";
 import AddHabitForm from "@/components/AddHabitForm";
 import { MobileRoutineCard } from '@/components/MobileRoutineCard';
 import React from 'react';

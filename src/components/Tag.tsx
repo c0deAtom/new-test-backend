@@ -38,7 +38,7 @@ useEffect(() => {
 
   const removeTag = (index: number) => {
     const newTags = [...tags];
-    newTags.slice(index, 1);
+    newTags.splice(index, 1);
     setTags(newTags);
   };
 
